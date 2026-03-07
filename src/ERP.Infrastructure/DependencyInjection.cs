@@ -1,8 +1,10 @@
 ﻿using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
 using ERP.Infrastructure.Authentication;
-using ERP.Infrastructure.Persistence.InMemory;
+using ERP.Infrastructure.Persistence;
+using ERP.Infrastructure.Persistence.Repositories;
 using ERP.Infrastructure.Security;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,18 +16,21 @@ public static class DependencyInjection
     {
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
 
-        services.AddSingleton<InMemoryDataStore>();
+        var connectionString = configuration.GetConnectionString("DefaultConnection")
+            ?? "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
 
-        services.AddSingleton<IUserRepository, UserRepository>();
-        services.AddSingleton<ICariAccountRepository, CariAccountRepository>();
-        services.AddSingleton<ICompanyRepository, CompanyRepository>();
-        services.AddSingleton<IBranchRepository, BranchRepository>();
-        services.AddSingleton<IWarehouseRepository, WarehouseRepository>();
-        services.AddSingleton<IProductRepository, ProductRepository>();
-        services.AddSingleton<IStockMovementRepository, StockMovementRepository>();
+        services.AddDbContext<ErpDbContext>(options => options.UseSqlServer(connectionString));
 
-        services.AddSingleton<IPasswordHasher, Pbkdf2PasswordHasher>();
-        services.AddSingleton<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICariAccountRepository, CariAccountRepository>();
+        services.AddScoped<ICompanyRepository, CompanyRepository>();
+        services.AddScoped<IBranchRepository, BranchRepository>();
+        services.AddScoped<IWarehouseRepository, WarehouseRepository>();
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IStockMovementRepository, StockMovementRepository>();
+
+        services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
+        services.AddScoped<IJwtTokenService, JwtTokenService>();
 
         return services;
     }
