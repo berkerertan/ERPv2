@@ -13,7 +13,6 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/reports")]
-[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class ReportsController(IMediator mediator) : ControllerBase
 {
     [HttpGet("stock")]

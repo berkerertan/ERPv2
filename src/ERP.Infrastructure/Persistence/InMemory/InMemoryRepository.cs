@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Common;
 
 namespace ERP.Infrastructure.Persistence.InMemory;
@@ -12,7 +12,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
     {
         lock (store.SyncRoot)
         {
-            return Task.FromResult(Entities.FirstOrDefault(x => x.Id == id));
+            return Task.FromResult(Entities.FirstOrDefault(x => x.Id == id && !x.IsDeleted));
         }
     }
 
@@ -20,7 +20,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
     {
         lock (store.SyncRoot)
         {
-            return Task.FromResult<IReadOnlyList<T>>(Entities.ToList());
+            return Task.FromResult<IReadOnlyList<T>>(Entities.Where(x => !x.IsDeleted).ToList());
         }
     }
 
@@ -39,7 +39,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
     {
         lock (store.SyncRoot)
         {
-            var index = Entities.FindIndex(x => x.Id == entity.Id);
+            var index = Entities.FindIndex(x => x.Id == entity.Id && !x.IsDeleted);
             if (index >= 0)
             {
                 entity.UpdatedAtUtc = DateTime.UtcNow;
@@ -54,11 +54,8 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
     {
         lock (store.SyncRoot)
         {
-            var existing = Entities.FirstOrDefault(x => x.Id == id);
-            if (existing is not null)
-            {
-                Entities.Remove(existing);
-            }
+            var existing = Entities.FirstOrDefault(x => x.Id == id && !x.IsDeleted);
+            existing?.MarkAsDeleted();
         }
 
         return Task.CompletedTask;

@@ -18,7 +18,19 @@ public sealed class ProductRepository : InMemoryRepository<Product>, IProductRep
     {
         lock (_store.SyncRoot)
         {
-            return Task.FromResult(Entities.FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase)));
+            return Task.FromResult(Entities.FirstOrDefault(x => !x.IsDeleted && x.Code.Equals(code, StringComparison.OrdinalIgnoreCase)));
+        }
+    }
+
+    public Task<Product?> GetByBarcodeAsync(string barcode, CancellationToken cancellationToken = default)
+    {
+        var normalized = barcode.Trim();
+        lock (_store.SyncRoot)
+        {
+            return Task.FromResult(Entities.FirstOrDefault(x => !x.IsDeleted
+                && (x.Code.Equals(normalized, StringComparison.OrdinalIgnoreCase)
+                    || (x.BarcodeEan13 is not null && x.BarcodeEan13.Equals(normalized, StringComparison.OrdinalIgnoreCase))
+                    || (x.QrCode is not null && x.QrCode.Equals(normalized, StringComparison.OrdinalIgnoreCase)))));
         }
     }
 }

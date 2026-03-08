@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Common;
 using Microsoft.EntityFrameworkCore;
 
@@ -41,7 +41,8 @@ public abstract class EfRepository<T>(ErpDbContext dbContext) : IRepository<T>
             return;
         }
 
-        Entities.Remove(existing);
+        existing.MarkAsDeleted();
+        Entities.Update(existing);
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

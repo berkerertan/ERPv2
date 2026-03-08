@@ -1,6 +1,11 @@
-using ERP.API.Contracts.StockMovements;
+﻿using ERP.API.Contracts.StockMovements;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
+using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
+using ERP.Application.Features.StockMovements.Commands.TransferStock;
+using ERP.Application.Features.StockMovements.Commands.UpdateStockMovement;
+using ERP.Application.Features.StockMovements.Queries.GetCriticalStockAlerts;
 using ERP.Application.Features.StockMovements.Queries.GetStockBalances;
+using ERP.Application.Features.StockMovements.Queries.GetStockMovementById;
 using ERP.Application.Features.StockMovements.Queries.GetStockMovements;
 using ERP.Domain.Constants;
 using MediatR;
@@ -11,7 +16,6 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/stock-movements")]
-[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class StockMovementsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -19,6 +23,14 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
     public async Task<ActionResult<IReadOnlyList<StockMovementDto>>> GetAll(CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new GetStockMovementsQuery(), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("{id:guid}")]
+    [ProducesResponseType(typeof(StockMovementDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<StockMovementDto>> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        var response = await mediator.Send(new GetStockMovementByIdQuery(id), cancellationToken);
         return Ok(response);
     }
 
@@ -30,12 +42,19 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         return Ok(response);
     }
 
-    [Authorize(Roles = AppRoles.Admin)]
+    [HttpGet("critical-alerts")]
+    [ProducesResponseType(typeof(IReadOnlyList<CriticalStockAlertDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CriticalStockAlertDto>>> GetCriticalAlerts(
+        [FromQuery] Guid? warehouseId,
+        CancellationToken cancellationToken)
+    {
+        var response = await mediator.Send(new GetCriticalStockAlertsQuery(warehouseId), cancellationToken);
+        return Ok(response);
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
-    public async Task<ActionResult<Guid>> Create(
-        [FromBody] CreateStockMovementRequest request,
-        CancellationToken cancellationToken)
+    public async Task<ActionResult<Guid>> Create([FromBody] CreateStockMovementRequest request, CancellationToken cancellationToken)
     {
         var command = new CreateStockMovementCommand(
             request.WarehouseId,
@@ -47,5 +66,48 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
 
         var id = await mediator.Send(command, cancellationToken);
         return Created($"/api/stock-movements/{id}", id);
+    }
+
+    [HttpPost("transfer")]
+    [ProducesResponseType(typeof(TransferStockResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<TransferStockResult>> Transfer(
+        [FromBody] TransferStockRequest request,
+        CancellationToken cancellationToken)
+    {
+        var command = new TransferStockCommand(
+            request.SourceWarehouseId,
+            request.DestinationWarehouseId,
+            request.ProductId,
+            request.Quantity,
+            request.UnitPrice,
+            request.ReferenceNo);
+
+        var response = await mediator.Send(command, cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateStockMovementRequest request, CancellationToken cancellationToken)
+    {
+        var command = new UpdateStockMovementCommand(
+            id,
+            request.WarehouseId,
+            request.ProductId,
+            request.Type,
+            request.Quantity,
+            request.UnitPrice,
+            request.ReferenceNo);
+
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        await mediator.Send(new DeleteStockMovementCommand(id), cancellationToken);
+        return NoContent();
     }
 }

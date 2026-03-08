@@ -1,4 +1,4 @@
-﻿using ERP.Domain.Common;
+using ERP.Domain.Common;
 using ERP.Domain.Enums;
 
 namespace ERP.Domain.Entities;
@@ -11,4 +11,6 @@ public sealed class CariAccount : BaseEntity
     public decimal RiskLimit { get; set; }
     public int MaturityDays { get; set; }
     public decimal CurrentBalance { get; set; }
+
+    public ICollection<CariDebtItem> DebtItems { get; set; } = [];
 }

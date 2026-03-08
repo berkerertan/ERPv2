@@ -6,7 +6,10 @@ namespace ERP.Infrastructure.Imports;
 
 public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
 {
-    public Task<IReadOnlyList<CariAccountExcelRow>> ReadAsync(Stream stream, CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<CariAccountExcelRow>> ReadAsync(
+        Stream stream,
+        CariImportColumnMapping? mapping,
+        CancellationToken cancellationToken = default)
     {
         using var workbook = new XLWorkbook(stream);
         var worksheet = workbook.Worksheets.FirstOrDefault();
@@ -24,7 +27,12 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
             throw new InvalidDataException("Excel header row is empty.");
         }
 
-        var columns = ResolveColumns(headerRow, columnCount);
+        var columns = ResolveColumns(headerRow, columnCount, mapping);
+
+        if (columns.Name is null)
+        {
+            throw new InvalidDataException("Required column is missing. Name column could not be resolved.");
+        }
 
         var lastRowNumber = worksheet.LastRowUsed()?.RowNumber() ?? 1;
         var rows = new List<CariAccountExcelRow>();
@@ -61,7 +69,10 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
         return Task.FromResult<IReadOnlyList<CariAccountExcelRow>>(rows);
     }
 
-    private static (int Code, int Name, int Type, int? RiskLimit, int? MaturityDays) ResolveColumns(IXLRow headerRow, int columnCount)
+    private static (int? Code, int? Name, int? Type, int? RiskLimit, int? MaturityDays) ResolveColumns(
+        IXLRow headerRow,
+        int columnCount,
+        CariImportColumnMapping? mapping)
     {
         var normalized = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -76,26 +87,53 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
             normalized.TryAdd(key, column);
         }
 
-        var code = FindColumn(normalized, "KOD", "CODE", "CARIKOD", "ACCOUNTCODE", "HESAPKOD");
-        var name = FindColumn(normalized, "AD", "ADI", "NAME", "UNVAN", "TICARIUNVAN", "ADSOYAD", "CARIADI", "ACCOUNTNAME");
-        var type = FindColumn(normalized, "TIP", "TUR", "TYPE", "CARITIP", "CARITUR", "HESAPTIPI");
+        var code = ResolveColumn(
+            normalized,
+            mapping?.CodeColumn,
+            "KOD", "CODE", "CARIKOD", "ACCOUNTCODE", "HESAPKOD");
 
-        if (code is null || name is null || type is null)
-        {
-            throw new InvalidDataException("Required columns are missing. Required headers: Code, Name, Type.");
-        }
+        var name = ResolveColumn(
+            normalized,
+            mapping?.NameColumn,
+            "MALZEMEACIKLAMA",
+            "AD", "ADI", "NAME", "UNVAN", "TICARIUNVAN", "ADSOYAD", "CARIADI", "ACCOUNTNAME");
 
-        var riskLimit = FindColumn(normalized, "RISKLIMIT", "RISKLIMIT", "RISK", "LIMIT", "RISKLIMITI");
-        var maturityDays = FindColumn(normalized, "VADEGUN", "VADEGUNU", "MATURITYDAYS", "MATURITY", "GUN");
+        var type = ResolveColumn(
+            normalized,
+            mapping?.TypeColumn,
+            "TIP", "TUR", "TYPE", "CARITIP", "CARITUR", "HESAPTIPI");
 
-        return (code.Value, name.Value, type.Value, riskLimit, maturityDays);
+        var riskLimit = ResolveColumn(
+            normalized,
+            mapping?.RiskLimitColumn,
+            "TOPLAMTUTAR",
+            "RISKLIMIT", "RISK", "LIMIT", "RISKLIMITI");
+
+        var maturityDays = ResolveColumn(
+            normalized,
+            mapping?.MaturityDaysColumn,
+            "VADEGUN", "VADEGUNU", "MATURITYDAYS", "MATURITY", "GUN");
+
+        return (code, name, type, riskLimit, maturityDays);
     }
 
-    private static int? FindColumn(Dictionary<string, int> columns, params string[] keys)
+    private static int? ResolveColumn(
+        Dictionary<string, int> columns,
+        string? explicitHeader,
+        params string[] aliases)
     {
-        foreach (var key in keys)
+        if (!string.IsNullOrWhiteSpace(explicitHeader))
         {
-            if (columns.TryGetValue(key, out var column))
+            var explicitKey = NormalizeHeader(explicitHeader);
+            if (columns.TryGetValue(explicitKey, out var explicitColumn))
+            {
+                return explicitColumn;
+            }
+        }
+
+        foreach (var alias in aliases)
+        {
+            if (columns.TryGetValue(alias, out var column))
             {
                 return column;
             }

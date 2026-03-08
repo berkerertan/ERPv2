@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Entities;
 
 namespace ERP.Infrastructure.Persistence.InMemory;
@@ -18,7 +18,7 @@ public sealed class WarehouseRepository : InMemoryRepository<Warehouse>, IWareho
     {
         lock (_store.SyncRoot)
         {
-            return Task.FromResult(Entities.FirstOrDefault(x => x.Code.Equals(code, StringComparison.OrdinalIgnoreCase)));
+            return Task.FromResult(Entities.FirstOrDefault(x => !x.IsDeleted && x.Code.Equals(code, StringComparison.OrdinalIgnoreCase)));
         }
     }
 }

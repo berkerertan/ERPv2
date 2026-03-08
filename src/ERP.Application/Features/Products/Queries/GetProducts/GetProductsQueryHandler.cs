@@ -12,7 +12,16 @@ public sealed class GetProductsQueryHandler(IProductRepository productRepository
 
         return products
             .OrderBy(x => x.Code)
-            .Select(x => new ProductDto(x.Id, x.Code, x.Name, x.Unit, x.Category))
+            .Select(x => new ProductDto(
+                x.Id,
+                x.Code,
+                x.Name,
+                x.Unit,
+                x.Category,
+                x.BarcodeEan13,
+                x.QrCode,
+                x.DefaultSalePrice,
+                x.CriticalStockLevel))
             .ToList();
     }
 }

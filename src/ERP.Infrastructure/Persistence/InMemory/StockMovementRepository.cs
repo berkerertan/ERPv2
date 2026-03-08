@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
 
@@ -20,7 +20,7 @@ public sealed class StockMovementRepository : InMemoryRepository<StockMovement>,
         lock (_store.SyncRoot)
         {
             var balance = Entities
-                .Where(x => x.WarehouseId == warehouseId && x.ProductId == productId)
+                .Where(x => !x.IsDeleted && x.WarehouseId == warehouseId && x.ProductId == productId)
                 .Sum(x => x.Type == StockMovementType.In ? x.Quantity : -x.Quantity);
 
             return Task.FromResult(balance);

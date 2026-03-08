@@ -8,4 +8,8 @@ public sealed class Product : BaseEntity
     public string Name { get; set; } = string.Empty;
     public string Unit { get; set; } = "EA";
     public string Category { get; set; } = string.Empty;
+    public string? BarcodeEan13 { get; set; }
+    public string? QrCode { get; set; }
+    public decimal DefaultSalePrice { get; set; }
+    public decimal CriticalStockLevel { get; set; }
 }

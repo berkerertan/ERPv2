@@ -77,8 +77,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-app.UseAuthentication();
-app.UseAuthorization();
+// app.UseAuthentication(); // Temporarily disabled for open testing
+// app.UseAuthorization(); // Temporarily disabled for open testing
 
 app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();

@@ -18,7 +18,7 @@ public sealed class UserRepository : InMemoryRepository<AppUser>, IUserRepositor
     {
         lock (_store.SyncRoot)
         {
-            return Task.FromResult(Entities.Count > 0);
+            return Task.FromResult(Entities.Any(x => !x.IsDeleted));
         }
     }
 
@@ -27,7 +27,7 @@ public sealed class UserRepository : InMemoryRepository<AppUser>, IUserRepositor
         lock (_store.SyncRoot)
         {
             return Task.FromResult(
-                Entities.FirstOrDefault(x => x.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase)));
+                Entities.FirstOrDefault(x => !x.IsDeleted && x.UserName.Equals(userName, StringComparison.OrdinalIgnoreCase)));
         }
     }
 
@@ -36,7 +36,7 @@ public sealed class UserRepository : InMemoryRepository<AppUser>, IUserRepositor
         lock (_store.SyncRoot)
         {
             return Task.FromResult(
-                Entities.FirstOrDefault(x => x.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
+                Entities.FirstOrDefault(x => !x.IsDeleted && x.Email.Equals(email, StringComparison.OrdinalIgnoreCase)));
         }
     }
 }

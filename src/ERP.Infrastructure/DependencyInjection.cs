@@ -25,6 +25,7 @@ public static class DependencyInjection
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICariAccountRepository, CariAccountRepository>();
+        services.AddScoped<ICariDebtItemRepository, CariDebtItemRepository>();
         services.AddScoped<ICompanyRepository, CompanyRepository>();
         services.AddScoped<IBranchRepository, BranchRepository>();
         services.AddScoped<IWarehouseRepository, WarehouseRepository>();
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IFinanceMovementRepository, FinanceMovementRepository>();
 
         services.AddScoped<ICariAccountExcelReader, ClosedXmlCariAccountExcelReader>();
+        services.AddScoped<ICariDebtItemExcelReader, ClosedXmlCariDebtItemExcelReader>();
 
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();

@@ -21,7 +21,7 @@ public sealed class ImportCariAccountsCommandHandler(
         try
         {
             using var stream = new MemoryStream(request.FileContent, writable: false);
-            rows = await excelReader.ReadAsync(stream, cancellationToken);
+            rows = await excelReader.ReadAsync(stream, request.ColumnMapping, cancellationToken);
         }
         catch (InvalidDataException ex)
         {
@@ -43,15 +43,44 @@ public sealed class ImportCariAccountsCommandHandler(
         var updated = 0;
         var skipped = 0;
 
+        var defaultTypeText = request.ColumnMapping?.DefaultType;
+        if (string.IsNullOrWhiteSpace(defaultTypeText))
+        {
+            defaultTypeText = nameof(CariType.BuyerBch);
+        }
+
+        var codePrefix = request.ColumnMapping?.CodePrefix;
+        if (string.IsNullOrWhiteSpace(codePrefix))
+        {
+            codePrefix = "BCH";
+        }
+
         foreach (var row in rows)
         {
-            var code = row.Code.Trim();
             var name = row.Name.Trim();
+            var code = row.Code.Trim();
             var typeText = row.Type.Trim();
+
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                errors.Add($"Row {row.RowNumber}: Name is required.");
+                continue;
+            }
 
             if (string.IsNullOrWhiteSpace(code))
             {
-                errors.Add($"Row {row.RowNumber}: Code is required.");
+                code = GenerateCode(codePrefix, row.RowNumber);
+            }
+
+            if (code.Length > 25)
+            {
+                errors.Add($"Row {row.RowNumber}: Code length exceeds 25 characters.");
+                continue;
+            }
+
+            if (name.Length > 150)
+            {
+                errors.Add($"Row {row.RowNumber}: Name length exceeds 150 characters.");
                 continue;
             }
 
@@ -61,10 +90,9 @@ public sealed class ImportCariAccountsCommandHandler(
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(name))
+            if (string.IsNullOrWhiteSpace(typeText))
             {
-                errors.Add($"Row {row.RowNumber}: Name is required.");
-                continue;
+                typeText = defaultTypeText;
             }
 
             if (!TryParseCariType(typeText, out var type))
@@ -88,6 +116,12 @@ public sealed class ImportCariAccountsCommandHandler(
             if (riskLimit < 0)
             {
                 errors.Add($"Row {row.RowNumber}: Risk limit cannot be negative.");
+                continue;
+            }
+
+            if (riskLimit > 9999999999999999.99m)
+            {
+                errors.Add($"Row {row.RowNumber}: Risk limit exceeds database precision (decimal(18,2)).");
                 continue;
             }
 
@@ -138,6 +172,24 @@ public sealed class ImportCariAccountsCommandHandler(
             skipped,
             errors.Count,
             errors);
+    }
+
+    private static string GenerateCode(string prefix, int rowNumber)
+    {
+        var normalizedPrefix = new string(prefix.Where(char.IsLetterOrDigit).ToArray());
+
+        if (string.IsNullOrWhiteSpace(normalizedPrefix))
+        {
+            normalizedPrefix = "BCH";
+        }
+
+        var code = $"{normalizedPrefix}-{rowNumber:00000}";
+        if (code.Length > 25)
+        {
+            code = code[..25];
+        }
+
+        return code;
     }
 
     private static bool TryParseCariType(string typeText, out CariType type)
@@ -244,4 +296,5 @@ public sealed class ImportCariAccountsCommandHandler(
             .Replace(" ", string.Empty);
     }
 }
+
 

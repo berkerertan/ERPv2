@@ -4,5 +4,8 @@ namespace ERP.Application.Abstractions.Imports;
 
 public interface ICariAccountExcelReader
 {
-    Task<IReadOnlyList<CariAccountExcelRow>> ReadAsync(Stream stream, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CariAccountExcelRow>> ReadAsync(
+        Stream stream,
+        CariImportColumnMapping? mapping,
+        CancellationToken cancellationToken = default);
 }

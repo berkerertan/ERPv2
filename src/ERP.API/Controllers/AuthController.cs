@@ -26,7 +26,6 @@ public sealed class AuthController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
-    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost("register")]
     [ProducesResponseType(typeof(UserRegistrationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<UserRegistrationResponse>> Register(
