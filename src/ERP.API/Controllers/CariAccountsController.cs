@@ -1,6 +1,7 @@
-﻿using ERP.API.Contracts.CariAccounts;
+using ERP.API.Contracts.CariAccounts;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariAccount;
 using ERP.Application.Features.CariAccounts.Queries.GetCariAccounts;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/cari-accounts")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class CariAccountsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -20,6 +21,7 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create(

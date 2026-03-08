@@ -1,6 +1,7 @@
-﻿using ERP.API.Contracts.Branches;
+using ERP.API.Contracts.Branches;
 using ERP.Application.Features.Branches.Commands.CreateBranch;
 using ERP.Application.Features.Branches.Queries.GetBranches;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/branches")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class BranchesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -20,6 +21,7 @@ public sealed class BranchesController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateBranchRequest request, CancellationToken cancellationToken)

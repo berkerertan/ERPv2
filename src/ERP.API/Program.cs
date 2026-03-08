@@ -1,4 +1,4 @@
-﻿using ERP.API.Common;
+using ERP.API.Common;
 using ERP.Application;
 using ERP.Infrastructure;
 using ERP.Infrastructure.Authentication;
@@ -67,6 +67,8 @@ builder.Services
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+await DevelopmentDataSeeder.SeedAsync(app);
 
 if (app.Environment.IsDevelopment())
 {

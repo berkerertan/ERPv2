@@ -1,7 +1,8 @@
-﻿using ERP.API.Contracts.StockMovements;
+using ERP.API.Contracts.StockMovements;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Queries.GetStockBalances;
 using ERP.Application.Features.StockMovements.Queries.GetStockMovements;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -10,7 +11,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/stock-movements")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class StockMovementsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -29,6 +30,7 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create(

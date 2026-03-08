@@ -1,6 +1,7 @@
-﻿using ERP.API.Contracts.Warehouses;
+using ERP.API.Contracts.Warehouses;
 using ERP.Application.Features.Warehouses.Commands.CreateWarehouse;
 using ERP.Application.Features.Warehouses.Queries.GetWarehouses;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/warehouses")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class WarehousesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -20,6 +21,7 @@ public sealed class WarehousesController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateWarehouseRequest request, CancellationToken cancellationToken)

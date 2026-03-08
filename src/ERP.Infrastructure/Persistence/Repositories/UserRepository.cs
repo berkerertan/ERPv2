@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,6 +11,11 @@ public sealed class UserRepository : EfRepository<AppUser>, IUserRepository
     public UserRepository(ErpDbContext dbContext) : base(dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    public Task<bool> AnyAsync(CancellationToken cancellationToken = default)
+    {
+        return _dbContext.Users.AnyAsync(cancellationToken);
     }
 
     public async Task<AppUser?> GetByUserNameAsync(string userName, CancellationToken cancellationToken = default)

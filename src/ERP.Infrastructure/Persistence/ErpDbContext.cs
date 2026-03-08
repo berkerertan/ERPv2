@@ -12,6 +12,11 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options) : DbCon
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
+    public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
+    public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
+    public DbSet<FinanceMovement> FinanceMovements => Set<FinanceMovement>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -93,6 +98,78 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options) : DbCon
             builder.HasOne<Product>()
                 .WithMany()
                 .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<PurchaseOrder>(builder =>
+        {
+            builder.ToTable("PurchaseOrders");
+            builder.HasIndex(x => x.OrderNo).IsUnique();
+            builder.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SupplierCariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.PurchaseOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PurchaseOrderItem>(builder =>
+        {
+            builder.ToTable("PurchaseOrderItems");
+            builder.Property(x => x.Quantity).HasPrecision(18, 3);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<SalesOrder>(builder =>
+        {
+            builder.ToTable("SalesOrders");
+            builder.HasIndex(x => x.OrderNo).IsUnique();
+            builder.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CustomerCariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.SalesOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<SalesOrderItem>(builder =>
+        {
+            builder.ToTable("SalesOrderItems");
+            builder.Property(x => x.Quantity).HasPrecision(18, 3);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<FinanceMovement>(builder =>
+        {
+            builder.ToTable("FinanceMovements");
+            builder.Property(x => x.Amount).HasPrecision(18, 2);
+            builder.Property(x => x.Description).HasMaxLength(250);
+            builder.Property(x => x.ReferenceNo).HasMaxLength(50);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

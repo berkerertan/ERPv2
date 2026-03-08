@@ -1,6 +1,7 @@
-﻿using ERP.API.Contracts.Companies;
+using ERP.API.Contracts.Companies;
 using ERP.Application.Features.Companies.Commands.CreateCompany;
 using ERP.Application.Features.Companies.Queries.GetCompanies;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/companies")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class CompaniesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -20,6 +21,7 @@ public sealed class CompaniesController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateCompanyRequest request, CancellationToken cancellationToken)

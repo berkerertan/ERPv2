@@ -1,6 +1,7 @@
-﻿using ERP.API.Contracts.Products;
+using ERP.API.Contracts.Products;
 using ERP.Application.Features.Products.Commands.CreateProduct;
 using ERP.Application.Features.Products.Queries.GetProducts;
+using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -9,7 +10,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/products")]
-[Authorize]
+[Authorize(Roles = AppRoles.AdminOrEmployee)]
 public sealed class ProductsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -20,6 +21,7 @@ public sealed class ProductsController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 
+    [Authorize(Roles = AppRoles.Admin)]
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> Create([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
