@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
@@ -18,10 +18,10 @@ public sealed class CreateFinanceMovementCommandHandler(
 
         if (request.Type == FinanceMovementType.Collection && cari.Type == CariType.Supplier)
         {
-            throw new ConflictException("Collection can only be used for customer/both cari types.");
+            throw new ConflictException("Collection can only be used for buyer/BCH or both cari types.");
         }
 
-        if (request.Type == FinanceMovementType.Payment && cari.Type == CariType.Customer)
+        if (request.Type == FinanceMovementType.Payment && cari.Type == CariType.BuyerBch)
         {
             throw new ConflictException("Payment can only be used for supplier/both cari types.");
         }

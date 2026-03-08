@@ -1,6 +1,8 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Imports;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
 using ERP.Infrastructure.Authentication;
+using ERP.Infrastructure.Imports;
 using ERP.Infrastructure.Persistence;
 using ERP.Infrastructure.Persistence.Repositories;
 using ERP.Infrastructure.Security;
@@ -31,6 +33,8 @@ public static class DependencyInjection
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
         services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
         services.AddScoped<IFinanceMovementRepository, FinanceMovementRepository>();
+
+        services.AddScoped<ICariAccountExcelReader, ClosedXmlCariAccountExcelReader>();
 
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();

@@ -1,5 +1,7 @@
 using ERP.API.Contracts.CariAccounts;
+using ERP.Application.Common.Models;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariAccount;
+using ERP.Application.Features.CariAccounts.Commands.ImportCariAccounts;
 using ERP.Application.Features.CariAccounts.Queries.GetCariAccounts;
 using ERP.Domain.Constants;
 using MediatR;
@@ -37,5 +39,27 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
 
         var id = await mediator.Send(command, cancellationToken);
         return Created($"/api/cari-accounts/{id}", id);
+    }
+
+    [Authorize(Roles = AppRoles.Admin)]
+    [HttpPost("import-excel")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(CariAccountImportResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<CariAccountImportResult>> ImportExcel(
+        [FromForm] ImportCariAccountsRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.File is null || request.File.Length == 0)
+        {
+            return BadRequest("Excel file is required.");
+        }
+
+        await using var memoryStream = new MemoryStream();
+        await request.File.CopyToAsync(memoryStream, cancellationToken);
+
+        var command = new ImportCariAccountsCommand(memoryStream.ToArray(), request.UpsertExisting);
+        var response = await mediator.Send(command, cancellationToken);
+
+        return Ok(response);
     }
 }

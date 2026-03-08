@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
@@ -22,8 +22,8 @@ public sealed class ApproveSalesOrderCommandHandler(
             throw new ConflictException("Only draft sales orders can be approved.");
         }
 
-        var customerCari = await cariAccountRepository.GetByIdAsync(order.CustomerCariAccountId, cancellationToken)
-            ?? throw new NotFoundException("Customer cari account not found.");
+        var buyerBchCari = await cariAccountRepository.GetByIdAsync(order.CustomerCariAccountId, cancellationToken)
+            ?? throw new NotFoundException("Buyer/BCH cari account not found.");
 
         foreach (var item in order.Items)
         {
@@ -55,8 +55,8 @@ public sealed class ApproveSalesOrderCommandHandler(
         }
 
         var total = order.Items.Sum(x => x.Quantity * x.UnitPrice);
-        customerCari.CurrentBalance += total;
-        await cariAccountRepository.UpdateAsync(customerCari, cancellationToken);
+        buyerBchCari.CurrentBalance += total;
+        await cariAccountRepository.UpdateAsync(buyerBchCari, cancellationToken);
 
         order.Status = OrderStatus.Approved;
         await salesOrderRepository.UpdateAsync(order, cancellationToken);

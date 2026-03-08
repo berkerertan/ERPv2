@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
@@ -23,7 +23,7 @@ public sealed class CreatePurchaseOrderCommandHandler(
         var supplier = await cariAccountRepository.GetByIdAsync(request.SupplierCariAccountId, cancellationToken)
             ?? throw new NotFoundException("Supplier cari account not found.");
 
-        if (supplier.Type == CariType.Customer)
+        if (supplier.Type == CariType.BuyerBch)
         {
             throw new ConflictException("Selected cari account is not a supplier.");
         }

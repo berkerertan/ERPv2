@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
@@ -20,12 +20,12 @@ public sealed class CreateSalesOrderCommandHandler(
             throw new ConflictException("Sales order number already exists.");
         }
 
-        var customer = await cariAccountRepository.GetByIdAsync(request.CustomerCariAccountId, cancellationToken)
-            ?? throw new NotFoundException("Customer cari account not found.");
+        var buyerBch = await cariAccountRepository.GetByIdAsync(request.CustomerCariAccountId, cancellationToken)
+            ?? throw new NotFoundException("Buyer/BCH cari account not found.");
 
-        if (customer.Type == CariType.Supplier)
+        if (buyerBch.Type == CariType.Supplier)
         {
-            throw new ConflictException("Selected cari account is not a customer.");
+            throw new ConflictException("Selected cari account is not a buyer/BCH account.");
         }
 
         if (await warehouseRepository.GetByIdAsync(request.WarehouseId, cancellationToken) is null)
