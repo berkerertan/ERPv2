@@ -1,4 +1,4 @@
-using ERP.API.Contracts.CariAccounts;
+﻿using ERP.API.Contracts.CariAccounts;
 using ERP.Application.Common.Models;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariAccount;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariDebtItem;
@@ -9,6 +9,7 @@ using ERP.Application.Features.CariAccounts.Commands.UpdateCariAccount;
 using ERP.Application.Features.CariAccounts.Commands.UpdateCariDebtItem;
 using ERP.Application.Features.CariAccounts.Queries.GetCariAccountById;
 using ERP.Application.Features.CariAccounts.Queries.GetCariAccounts;
+using ERP.Application.Features.CariAccounts.Queries.GetCariAccountSuggestions;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItemById;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItems;
 using ERP.Domain.Enums;
@@ -23,36 +24,79 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<CariAccountDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetAll(
+        [FromQuery] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc",
+        CancellationToken cancellationToken = default)
     {
-        var response = await mediator.Send(new GetCariAccountsQuery(), cancellationToken);
+        var response = await mediator.Send(new GetCariAccountsQuery(q, null, page, pageSize, sortBy, sortDir), cancellationToken);
         return Ok(response);
     }
 
     [HttpGet("suppliers")]
     [ProducesResponseType(typeof(IReadOnlyList<CariAccountDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetSuppliers(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetSuppliers(
+        [FromQuery] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc",
+        CancellationToken cancellationToken = default)
     {
-        var accounts = await mediator.Send(new GetCariAccountsQuery(), cancellationToken);
-        var suppliers = accounts
-            .Where(x => x.Type is CariType.Supplier or CariType.Both)
-            .ToList();
-
+        var suppliers = await mediator.Send(new GetCariAccountsQuery(q, CariType.Supplier, page, pageSize, sortBy, sortDir), cancellationToken);
         return Ok(suppliers);
     }
 
     [HttpGet("buyers")]
     [ProducesResponseType(typeof(IReadOnlyList<CariAccountDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetBuyers(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<CariAccountDto>>> GetBuyers(
+        [FromQuery] string? q,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string? sortBy = null,
+        [FromQuery] string sortDir = "asc",
+        CancellationToken cancellationToken = default)
     {
-        var accounts = await mediator.Send(new GetCariAccountsQuery(), cancellationToken);
-        var buyers = accounts
-            .Where(x => x.Type is CariType.BuyerBch or CariType.Both)
-            .ToList();
-
+        var buyers = await mediator.Send(new GetCariAccountsQuery(q, CariType.BuyerBch, page, pageSize, sortBy, sortDir), cancellationToken);
         return Ok(buyers);
     }
 
+
+    [HttpGet("suggest")]
+    [ProducesResponseType(typeof(IReadOnlyList<CariAccountSuggestionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CariAccountSuggestionDto>>> Suggest(
+        [FromQuery] string? q,
+        [FromQuery] int limit = 8,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(new GetCariAccountSuggestionsQuery(q, null, limit), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("buyers/suggest")]
+    [ProducesResponseType(typeof(IReadOnlyList<CariAccountSuggestionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CariAccountSuggestionDto>>> SuggestBuyers(
+        [FromQuery] string? q,
+        [FromQuery] int limit = 8,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(new GetCariAccountSuggestionsQuery(q, CariType.BuyerBch, limit), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("suppliers/suggest")]
+    [ProducesResponseType(typeof(IReadOnlyList<CariAccountSuggestionDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<CariAccountSuggestionDto>>> SuggestSuppliers(
+        [FromQuery] string? q,
+        [FromQuery] int limit = 8,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(new GetCariAccountSuggestionsQuery(q, CariType.Supplier, limit), cancellationToken);
+        return Ok(response);
+    }
     [HttpGet("{id:guid}")]
     [ProducesResponseType(typeof(CariAccountDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<CariAccountDto>> GetById(Guid id, CancellationToken cancellationToken)
@@ -205,3 +249,4 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 }
+

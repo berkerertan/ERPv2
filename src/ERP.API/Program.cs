@@ -24,6 +24,8 @@ builder.Services.AddSwaggerGen(options =>
         Description = "ERP foundation API with Clean Architecture + CQRS"
     });
 
+
+    options.OperationFilter<EndpointSummaryOperationFilter>();
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",

@@ -20,9 +20,21 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<StockMovementDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<StockMovementDto>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<IReadOnlyList<StockMovementDto>>> GetAll(
+        [FromQuery] string? q,
+        [FromQuery] Guid? warehouseId,
+        [FromQuery] Guid? productId,
+        [FromQuery] ERP.Domain.Enums.StockMovementType? type,
+        [FromQuery] DateTime? fromUtc,
+        [FromQuery] DateTime? toUtc,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        [FromQuery] string sortDir = "desc",
+        CancellationToken cancellationToken = default)
     {
-        var response = await mediator.Send(new GetStockMovementsQuery(), cancellationToken);
+        var response = await mediator.Send(
+            new GetStockMovementsQuery(q, warehouseId, productId, type, fromUtc, toUtc, page, pageSize, sortDir),
+            cancellationToken);
         return Ok(response);
     }
 
@@ -111,3 +123,4 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         return NoContent();
     }
 }
+
