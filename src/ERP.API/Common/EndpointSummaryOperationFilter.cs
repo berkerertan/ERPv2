@@ -31,12 +31,47 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
 
         if (p == "/api/auth/register")
         {
-            return "Yeni kullanici hesabi olusturur.";
+            return "Yeni kullanici hesabi olusturur ve kullaniciyi secilen kademeye atar.";
+        }
+
+        if (p == "/api/auth/register-saas")
+        {
+            return "Abone kaydi olusturur, plan secimine gore tenant ve kademe rolunu atar.";
         }
 
         if (p == "/api/auth/bootstrap-admin")
         {
-            return "Sistemde ilk admin kullanicisini olusturur.";
+            return "Sistemde tek platform admin kullanicisini olusturur.";
+        }
+
+        if (p == "/api/auth/subscription-plans")
+        {
+            return "Abonelik kademelerini, fiyatlarini ve atanacak rol bilgisini listeler.";
+        }
+
+        if (p == "/api/auth/refresh")
+        {
+            return "Refresh token ile yeni access token uretir.";
+        }
+
+        if (p == "/api/auth/me")
+        {
+            return "Giris yapan kullanicinin aktif oturum bilgilerini getirir.";
+        }
+
+        if (p == "/api/auth/logout")
+        {
+            return "Refresh token i pasife alarak oturumu kapatir.";
+        }
+
+        if (p.Contains("/platform-admin/audit-logs/summary"))
+        {
+            return "Admin paneli icin audit log ozet metriklerini getirir.";
+        }
+
+        if (p.Contains("/platform-admin/audit-logs"))
+        {
+            return "Admin paneli icin sistem audit log kayitlarini listeler veya detayini verir.";
         }
 
         if (p.Contains("/suggest"))
@@ -112,6 +147,66 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Yalnizca alici carileri listeler.";
         }
 
+        if (p.Contains("/api/accounting/chart-of-accounts"))
+        {
+            return "Muhasebe hesap plani kayitlarini yonetir.";
+        }
+
+        if (p.Contains("/api/accounting/journal-entries") && p.Contains("/post"))
+        {
+            return "Yevmiye fisini kontrol edip posted durumuna alir.";
+        }
+
+        if (p.Contains("/api/accounting/journal-entries") && p.Contains("/reverse"))
+        {
+            return "Yevmiye fisinin ters kaydini olusturur.";
+        }
+
+        if (p.Contains("/api/accounting/journal-entries"))
+        {
+            return "Yevmiye fislerini olusturur, listeler ve gunceller.";
+        }
+
+        if (p.Contains("/api/accounting/collections-payments"))
+        {
+            return "Cariye bagli tahsilat/odeme islemini kasa veya banka ile birlikte kaydeder.";
+        }
+
+        if (p.Contains("/api/accounting/cash-accounts") || p.Contains("/api/accounting/cash-transactions"))
+        {
+            return "Kasa hesaplari ve kasa hareketlerini yonetir.";
+        }
+
+        if (p.Contains("/api/accounting/bank-accounts") || p.Contains("/api/accounting/bank-transactions"))
+        {
+            return "Banka hesaplari ve banka hareketlerini yonetir.";
+        }
+
+        if (p.Contains("/api/invoices/from-sales-order"))
+        {
+            return "Onayli satis siparisinden satis faturasi olusturur.";
+        }
+
+        if (p.Contains("/api/invoices/from-purchase-order"))
+        {
+            return "Onayli satin alma siparisinden alis faturasi olusturur.";
+        }
+
+        if (p.Contains("/reports/finance/profitability"))
+        {
+            return "Karlilik raporlarini urun/musteri/sube bazinda getirir.";
+        }
+
+        if (p.Contains("/reports/finance/cash-flow-forecast"))
+        {
+            return "Vadeye gore beklenen nakit giris-cikis tahminini listeler.";
+        }
+
+        if (p.Contains("/reports/finance/due-list"))
+        {
+            return "Vade listesi ve gecikme gunu bilgilerini dondurur.";
+        }
+
         if (p.Contains("/reports"))
         {
             return "Rapor verisini listeler veya ozet cikti dondurur.";
@@ -130,3 +225,6 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
         };
     }
 }
+
+
+

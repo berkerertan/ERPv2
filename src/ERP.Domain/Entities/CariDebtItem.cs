@@ -1,8 +1,8 @@
-using ERP.Domain.Common;
+﻿using ERP.Domain.Common;
 
 namespace ERP.Domain.Entities;
 
-public sealed class CariDebtItem : BaseEntity
+public sealed class CariDebtItem : TenantOwnedEntity
 {
     public Guid CariAccountId { get; set; }
     public DateTime TransactionDate { get; set; }
@@ -16,3 +16,4 @@ public sealed class CariDebtItem : BaseEntity
 
     public CariAccount? CariAccount { get; set; }
 }
+

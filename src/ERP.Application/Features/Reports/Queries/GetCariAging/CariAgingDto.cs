@@ -1,9 +1,11 @@
-﻿namespace ERP.Application.Features.Reports.Queries.GetCariAging;
+namespace ERP.Application.Features.Reports.Queries.GetCariAging;
 
 public sealed record CariAgingDto(
     Guid CariAccountId,
-    string Code,
     string Name,
-    int MaturityDays,
-    decimal CurrentBalance,
-    string AgingBucket);
+    decimal Current,
+    decimal Days30,
+    decimal Days60,
+    decimal Days90,
+    decimal Over90,
+    decimal Total);

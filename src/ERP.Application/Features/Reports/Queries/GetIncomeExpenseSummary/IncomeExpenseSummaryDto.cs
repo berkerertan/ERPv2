@@ -1,8 +1,9 @@
-﻿namespace ERP.Application.Features.Reports.Queries.GetIncomeExpenseSummary;
+namespace ERP.Application.Features.Reports.Queries.GetIncomeExpenseSummary;
+
+public sealed record IncomeExpenseItemDto(DateOnly Date, decimal Income, decimal Expense);
 
 public sealed record IncomeExpenseSummaryDto(
     decimal TotalIncome,
     decimal TotalExpense,
     decimal NetProfit,
-    decimal TotalCollections,
-    decimal TotalPayments);
+    IReadOnlyList<IncomeExpenseItemDto> Items);

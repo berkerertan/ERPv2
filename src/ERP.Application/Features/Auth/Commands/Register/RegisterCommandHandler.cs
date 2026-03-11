@@ -24,7 +24,15 @@ public sealed class RegisterCommandHandler(
             throw new ConflictException("Email already exists.");
         }
 
-        var role = NormalizeRole(request.Role);
+        string role;
+        try
+        {
+            role = AppRoles.NormalizeTierRole(request.Role);
+        }
+        catch (ArgumentException)
+        {
+            throw new ConflictException($"Invalid role '{request.Role}'. Allowed roles: {AppRoles.GetPublicRoleListText()}.");
+        }
 
         var user = new AppUser
         {
@@ -37,20 +45,5 @@ public sealed class RegisterCommandHandler(
         await userRepository.AddAsync(user, cancellationToken);
 
         return new UserRegistrationResponse(user.Id, user.UserName, user.Role);
-    }
-
-    private static string NormalizeRole(string role)
-    {
-        if (string.IsNullOrWhiteSpace(role) || role.Equals(AppRoles.Employee, StringComparison.OrdinalIgnoreCase))
-        {
-            return AppRoles.Employee;
-        }
-
-        if (role.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase))
-        {
-            return AppRoles.Admin;
-        }
-
-        throw new ConflictException($"Invalid role '{role}'. Allowed roles: {AppRoles.Admin}, {AppRoles.Employee}.");
     }
 }

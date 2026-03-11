@@ -13,13 +13,7 @@ public sealed class RegisterCommandValidator : AbstractValidator<RegisterCommand
 
         RuleFor(x => x.Role)
             .NotEmpty()
-            .Must(IsAllowedRole)
-            .WithMessage($"Role must be '{AppRoles.Admin}' or '{AppRoles.Employee}'.");
-    }
-
-    private static bool IsAllowedRole(string role)
-    {
-        return role.Equals(AppRoles.Admin, StringComparison.OrdinalIgnoreCase)
-            || role.Equals(AppRoles.Employee, StringComparison.OrdinalIgnoreCase);
+            .Must(AppRoles.IsPublicRegistrationRole)
+            .WithMessage($"Role must be one of: {AppRoles.GetPublicRoleListText()}.");
     }
 }

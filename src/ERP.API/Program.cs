@@ -1,10 +1,12 @@
 using ERP.API.Common;
 using ERP.Application;
+using ERP.Domain.Constants;
 using ERP.Infrastructure;
 using ERP.Infrastructure.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
+using System.Security.Claims;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,6 +14,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
+
+builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
+builder.Services.Configure<TenantResolutionOptions>(builder.Configuration.GetSection(TenantResolutionOptions.SectionName));
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -23,7 +28,6 @@ builder.Services.AddSwaggerGen(options =>
         Version = "v1",
         Description = "ERP foundation API with Clean Architecture + CQRS"
     });
-
 
     options.OperationFilter<EndpointSummaryOperationFilter>();
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -62,15 +66,26 @@ builder.Services
             ValidIssuer = jwtOptions.Issuer,
             ValidAudience = jwtOptions.Audience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.Key)),
-            ClockSkew = TimeSpan.FromSeconds(30)
+            ClockSkew = TimeSpan.FromSeconds(30),
+            RoleClaimType = ClaimTypes.Role,
+            NameClaimType = ClaimTypes.Name
         };
     });
 
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy => policy.RequireRole(AppRoles.Admin));
+    options.AddPolicy("TierUserOrAdmin", policy => policy.RequireRole(AppRoles.Admin, AppRoles.Tier1, AppRoles.Tier2, AppRoles.Tier3));
+    options.AddPolicy("PlatformAdmin", policy =>
+        policy.RequireAssertion(context =>
+            context.User.IsInRole(AppRoles.Admin) && !context.User.HasClaim(c => c.Type == "tenant_id")));
+});
 
 var app = builder.Build();
+var securityOptions = builder.Configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() ?? new SecurityOptions();
 
 await DevelopmentDataSeeder.SeedAsync(app);
+await SubscriptionRoleSynchronization.ApplyAsync(app);
 
 if (app.Environment.IsDevelopment())
 {
@@ -79,15 +94,29 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-// app.UseAuthentication(); // Temporarily disabled for open testing
-// app.UseAuthorization(); // Temporarily disabled for open testing
+
+if (securityOptions.EnforceAuthorization)
+{
+    app.UseAuthentication();
+}
+
+app.UseMiddleware<TenantResolutionMiddleware>();
+
+if (securityOptions.EnforceAuthorization)
+{
+    app.UseAuthorization();
+}
+
+app.UseMiddleware<ActivityLoggingMiddleware>();
 
 app.MapControllers();
 app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
-    utc = DateTime.UtcNow
+    utc = DateTime.UtcNow,
+    authorizationEnforced = securityOptions.EnforceAuthorization
 })).AllowAnonymous();
 
 app.Run();
+

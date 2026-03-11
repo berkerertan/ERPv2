@@ -1,13 +1,18 @@
-﻿using ERP.API.Contracts.Pos;
+using ERP.API.Common;
+using ERP.API.Contracts.Pos;
 using ERP.Application.Features.Pos.Commands.CreatePosQuickSale;
 using ERP.Application.Features.Pos.Queries.ScanPosProduct;
+using ERP.Domain.Constants;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/pos")]
+[Authorize]
+[RequireSubscriptionFeature(SubscriptionFeatures.Pos)]
 public sealed class PosController(IMediator mediator) : ControllerBase
 {
     [HttpGet("products/scan")]

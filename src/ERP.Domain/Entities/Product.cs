@@ -2,7 +2,7 @@
 
 namespace ERP.Domain.Entities;
 
-public sealed class Product : BaseEntity
+public sealed class Product : TenantOwnedEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -13,3 +13,4 @@ public sealed class Product : BaseEntity
     public decimal DefaultSalePrice { get; set; }
     public decimal CriticalStockLevel { get; set; }
 }
+

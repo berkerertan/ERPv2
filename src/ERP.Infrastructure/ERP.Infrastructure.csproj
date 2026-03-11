@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
     <ProjectReference Include="..\ERP.Application\ERP.Application.csproj" />
@@ -7,6 +7,8 @@
 
   <ItemGroup>
     <PackageReference Include="ClosedXML" Version="*" />
+    <PackageReference Include="Microsoft.AspNetCore.Http" Version="*" />
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" Version="*" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.3">
       <PrivateAssets>all</PrivateAssets>

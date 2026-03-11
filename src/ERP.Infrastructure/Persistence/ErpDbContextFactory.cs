@@ -1,4 +1,6 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using ERP.Infrastructure.Security;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 
 namespace ERP.Infrastructure.Persistence;
@@ -13,6 +15,6 @@ public sealed class ErpDbContextFactory : IDesignTimeDbContextFactory<ErpDbConte
         var optionsBuilder = new DbContextOptionsBuilder<ErpDbContext>();
         optionsBuilder.UseSqlServer(connectionString);
 
-        return new ErpDbContext(optionsBuilder.Options);
+        return new ErpDbContext(optionsBuilder.Options, new CurrentTenantService(new HttpContextAccessor()));
     }
 }

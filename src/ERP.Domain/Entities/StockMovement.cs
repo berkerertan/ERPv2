@@ -3,7 +3,7 @@ using ERP.Domain.Enums;
 
 namespace ERP.Domain.Entities;
 
-public sealed class StockMovement : BaseEntity
+public sealed class StockMovement : TenantOwnedEntity
 {
     public Guid WarehouseId { get; set; }
     public Guid ProductId { get; set; }
@@ -13,3 +13,4 @@ public sealed class StockMovement : BaseEntity
     public DateTime MovementDateUtc { get; set; } = DateTime.UtcNow;
     public string? ReferenceNo { get; set; }
 }
+

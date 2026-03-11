@@ -1,8 +1,10 @@
-﻿namespace ERP.Application.Features.StockMovements.Queries.GetStockBalances;
+namespace ERP.Application.Features.StockMovements.Queries.GetStockBalances;
 
-public sealed record StockBalanceDto(
-    Guid WarehouseId,
-    string WarehouseCode,
+public sealed record StockReportItemDto(
     Guid ProductId,
-    string ProductCode,
-    decimal Quantity);
+    string ProductName,
+    string Barcode,
+    string WarehouseName,
+    decimal Balance,
+    string Unit,
+    decimal TotalValue);

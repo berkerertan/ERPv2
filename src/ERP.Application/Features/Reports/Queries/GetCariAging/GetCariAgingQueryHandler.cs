@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using MediatR;
 
 namespace ERP.Application.Features.Reports.Queries.GetCariAging;
@@ -11,22 +11,39 @@ public sealed class GetCariAgingQueryHandler(ICariAccountRepository cariAccountR
         var cariAccounts = await cariAccountRepository.GetAllAsync(cancellationToken);
 
         return cariAccounts
-            .OrderBy(x => x.Code)
-            .Select(x => new CariAgingDto(
-                x.Id,
-                x.Code,
-                x.Name,
-                x.MaturityDays,
-                x.CurrentBalance,
-                GetBucket(x.MaturityDays)))
-            .ToList();
-    }
+            .OrderBy(x => x.Name)
+            .Select(x =>
+            {
+                var total = x.CurrentBalance;
+                var current = 0m;
+                var days30 = 0m;
+                var days60 = 0m;
+                var days90 = 0m;
+                var over90 = 0m;
 
-    private static string GetBucket(int maturityDays)
-    {
-        if (maturityDays <= 30) return "0-30";
-        if (maturityDays <= 60) return "31-60";
-        if (maturityDays <= 90) return "61-90";
-        return "90+";
+                if (x.MaturityDays <= 0)
+                {
+                    current = total;
+                }
+                else if (x.MaturityDays <= 30)
+                {
+                    days30 = total;
+                }
+                else if (x.MaturityDays <= 60)
+                {
+                    days60 = total;
+                }
+                else if (x.MaturityDays <= 90)
+                {
+                    days90 = total;
+                }
+                else
+                {
+                    over90 = total;
+                }
+
+                return new CariAgingDto(x.Id, x.Name, current, days30, days60, days90, over90, total);
+            })
+            .ToList();
     }
 }

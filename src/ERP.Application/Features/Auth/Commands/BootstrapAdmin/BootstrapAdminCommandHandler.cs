@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
 using ERP.Application.Common.Exceptions;
 using ERP.Application.Common.Models;
@@ -40,6 +40,11 @@ public sealed class BootstrapAdminCommandHandler(
             user.RefreshToken,
             token.ExpiresAtUtc,
             user.Role,
-            user.UserName);
+            user.UserName,
+            null,
+            null,
+            null,
+            null,
+            []);
     }
 }

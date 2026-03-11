@@ -3,7 +3,7 @@ using ERP.Domain.Enums;
 
 namespace ERP.Domain.Entities;
 
-public sealed class PurchaseOrder : BaseEntity
+public sealed class PurchaseOrder : TenantOwnedEntity
 {
     public string OrderNo { get; set; } = string.Empty;
     public Guid SupplierCariAccountId { get; set; }
@@ -13,3 +13,4 @@ public sealed class PurchaseOrder : BaseEntity
 
     public ICollection<PurchaseOrderItem> Items { get; set; } = [];
 }
+

@@ -1,9 +1,9 @@
-using ERP.Domain.Common;
+﻿using ERP.Domain.Common;
 using ERP.Domain.Enums;
 
 namespace ERP.Domain.Entities;
 
-public sealed class CariAccount : BaseEntity
+public sealed class CariAccount : TenantOwnedEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
@@ -14,3 +14,4 @@ public sealed class CariAccount : BaseEntity
 
     public ICollection<CariDebtItem> DebtItems { get; set; } = [];
 }
+

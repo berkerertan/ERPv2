@@ -1,4 +1,4 @@
-﻿using ERP.API.Contracts.StockMovements;
+using ERP.API.Contracts.StockMovements;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
 using ERP.Application.Features.StockMovements.Commands.TransferStock;
@@ -47,8 +47,8 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
     }
 
     [HttpGet("balances")]
-    [ProducesResponseType(typeof(IReadOnlyList<StockBalanceDto>), StatusCodes.Status200OK)]
-    public async Task<ActionResult<IReadOnlyList<StockBalanceDto>>> GetBalances(CancellationToken cancellationToken)
+    [ProducesResponseType(typeof(IReadOnlyList<StockReportItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<StockReportItemDto>>> GetBalances(CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new GetStockBalancesQuery(), cancellationToken);
         return Ok(response);
@@ -123,4 +123,5 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         return NoContent();
     }
 }
+
 

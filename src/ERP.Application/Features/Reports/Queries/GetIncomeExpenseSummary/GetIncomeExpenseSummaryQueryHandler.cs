@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Enums;
 using MediatR;
 
@@ -6,32 +6,40 @@ namespace ERP.Application.Features.Reports.Queries.GetIncomeExpenseSummary;
 
 public sealed class GetIncomeExpenseSummaryQueryHandler(
     ISalesOrderRepository salesOrderRepository,
-    IPurchaseOrderRepository purchaseOrderRepository,
-    IFinanceMovementRepository financeMovementRepository)
+    IPurchaseOrderRepository purchaseOrderRepository)
     : IRequestHandler<GetIncomeExpenseSummaryQuery, IncomeExpenseSummaryDto>
 {
     public async Task<IncomeExpenseSummaryDto> Handle(GetIncomeExpenseSummaryQuery request, CancellationToken cancellationToken)
     {
         var sales = await salesOrderRepository.GetAllWithItemsAsync(cancellationToken);
         var purchases = await purchaseOrderRepository.GetAllWithItemsAsync(cancellationToken);
-        var financeMovements = await financeMovementRepository.GetAllAsync(cancellationToken);
 
-        var income = sales
-            .Where(x => x.Status == OrderStatus.Approved)
-            .Sum(x => x.Items.Sum(i => i.Quantity * i.UnitPrice));
+        var approvedSales = sales.Where(x => x.Status == OrderStatus.Approved).ToList();
+        var approvedPurchases = purchases.Where(x => x.Status == OrderStatus.Approved).ToList();
 
-        var expense = purchases
-            .Where(x => x.Status == OrderStatus.Approved)
-            .Sum(x => x.Items.Sum(i => i.Quantity * i.UnitPrice));
+        var incomeByDate = approvedSales
+            .GroupBy(x => DateOnly.FromDateTime(x.OrderDateUtc.Date))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Items.Sum(i => i.Quantity * i.UnitPrice)));
 
-        var collections = financeMovements
-            .Where(x => x.Type == FinanceMovementType.Collection)
-            .Sum(x => x.Amount);
+        var expenseByDate = approvedPurchases
+            .GroupBy(x => DateOnly.FromDateTime(x.OrderDateUtc.Date))
+            .ToDictionary(g => g.Key, g => g.Sum(x => x.Items.Sum(i => i.Quantity * i.UnitPrice)));
 
-        var payments = financeMovements
-            .Where(x => x.Type == FinanceMovementType.Payment)
-            .Sum(x => x.Amount);
+        var allDates = incomeByDate.Keys
+            .Union(expenseByDate.Keys)
+            .OrderBy(x => x)
+            .ToList();
 
-        return new IncomeExpenseSummaryDto(income, expense, income - expense, collections, payments);
+        var items = allDates
+            .Select(date => new IncomeExpenseItemDto(
+                date,
+                incomeByDate.TryGetValue(date, out var income) ? income : 0m,
+                expenseByDate.TryGetValue(date, out var expense) ? expense : 0m))
+            .ToList();
+
+        var totalIncome = items.Sum(x => x.Income);
+        var totalExpense = items.Sum(x => x.Expense);
+
+        return new IncomeExpenseSummaryDto(totalIncome, totalExpense, totalIncome - totalExpense, items);
     }
 }

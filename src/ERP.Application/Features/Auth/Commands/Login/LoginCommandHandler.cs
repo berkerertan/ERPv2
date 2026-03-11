@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
 using ERP.Application.Common.Models;
 using MediatR;
@@ -7,6 +7,8 @@ namespace ERP.Application.Features.Auth.Commands.Login;
 
 public sealed class LoginCommandHandler(
     IUserRepository userRepository,
+    ITenantAccountRepository tenantAccountRepository,
+    ISubscriptionPlanService subscriptionPlanService,
     IPasswordHasher passwordHasher,
     IJwtTokenService jwtTokenService) : IRequestHandler<LoginCommand, AuthResponse>
 {
@@ -20,18 +22,31 @@ public sealed class LoginCommandHandler(
             throw new UnauthorizedAccessException("Invalid credentials.");
         }
 
+        var tenant = user.TenantAccountId.HasValue
+            ? await tenantAccountRepository.GetByIdAsync(user.TenantAccountId.Value, cancellationToken)
+            : null;
+
+        var planConfig = tenant is null
+            ? null
+            : await subscriptionPlanService.GetPlanConfigAsync(tenant.Plan, cancellationToken);
+
         user.RefreshToken = jwtTokenService.GenerateRefreshToken();
         user.RefreshTokenExpiresAtUtc = DateTime.UtcNow.AddDays(7);
         user.UpdatedAtUtc = DateTime.UtcNow;
         await userRepository.UpdateAsync(user, cancellationToken);
 
-        var token = jwtTokenService.GenerateAccessToken(user);
+        var token = jwtTokenService.GenerateAccessToken(user, tenant, planConfig?.Features);
 
         return new AuthResponse(
             token.AccessToken,
             user.RefreshToken,
             token.ExpiresAtUtc,
             user.Role,
-            user.UserName);
+            user.UserName,
+            tenant?.Id,
+            tenant?.Name,
+            tenant?.Plan,
+            tenant?.SubscriptionStatus,
+            planConfig?.Features ?? []);
     }
 }

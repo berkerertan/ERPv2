@@ -1,3 +1,7 @@
-﻿namespace ERP.Application.Features.Reports.Queries.GetSalesSummary;
+namespace ERP.Application.Features.Reports.Queries.GetSalesSummary;
 
-public sealed record SalesSummaryDto(int ApprovedOrderCount, decimal TotalSalesAmount, decimal TotalSoldQuantity);
+public sealed record SalesReportItemDto(
+    DateOnly Date,
+    int OrderCount,
+    decimal TotalAmount,
+    string TopProduct);

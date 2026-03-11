@@ -1,4 +1,5 @@
-﻿using ERP.API.Contracts.CariAccounts;
+using ERP.API.Common;
+using ERP.API.Contracts.CariAccounts;
 using ERP.Application.Common.Models;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariAccount;
 using ERP.Application.Features.CariAccounts.Commands.CreateCariDebtItem;
@@ -12,6 +13,7 @@ using ERP.Application.Features.CariAccounts.Queries.GetCariAccounts;
 using ERP.Application.Features.CariAccounts.Queries.GetCariAccountSuggestions;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItemById;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItems;
+using ERP.Domain.Constants;
 using ERP.Domain.Enums;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -218,6 +220,7 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
     }
 
     [HttpPost("{cariAccountId:guid}/debt-items/import-excel")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.ExcelImport)]
     [Consumes("multipart/form-data")]
     [ProducesResponseType(typeof(CariDebtItemImportResult), StatusCodes.Status200OK)]
     public async Task<ActionResult<CariDebtItemImportResult>> ImportDebtItems(
@@ -249,4 +252,5 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 }
+
 
