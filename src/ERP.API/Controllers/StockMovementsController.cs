@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.StockMovements;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
@@ -16,6 +17,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/stock-movements")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class StockMovementsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -123,5 +125,7 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         return NoContent();
     }
 }
+
+
 
 

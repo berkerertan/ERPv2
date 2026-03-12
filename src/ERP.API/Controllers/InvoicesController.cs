@@ -1,4 +1,4 @@
-﻿using ERP.API.Common;
+using ERP.API.Common;
 using ERP.API.Contracts.Invoices;
 using ERP.Domain.Entities;
 using ERP.Domain.Constants;
@@ -13,7 +13,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/invoices")]
-[Authorize]
+[RequirePolicy("TierUserOrAdmin")]
 [RequireSubscriptionFeature(SubscriptionFeatures.Invoices)]
 public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 {
@@ -609,6 +609,7 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
             item.TaxAmount,
             item.LineTotal);
 }
+
 
 
 

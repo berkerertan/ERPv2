@@ -14,15 +14,20 @@ using ERP.Application.Features.CariAccounts.Queries.GetCariAccountSuggestions;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItemById;
 using ERP.Application.Features.CariAccounts.Queries.GetCariDebtItems;
 using ERP.Domain.Constants;
+using ERP.Domain.Entities;
 using ERP.Domain.Enums;
+using ERP.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Text;
 
 namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/cari-accounts")]
-public sealed class CariAccountsController(IMediator mediator) : ControllerBase
+[RequirePolicy("TierUserOrAdmin")]
+public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbContext) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<CariAccountDto>), StatusCodes.Status200OK)]
@@ -219,6 +224,149 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 
+    [HttpPost("buyers/import-excel")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.ExcelImport)]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(BuyerDebtItemsBatchImportResult), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BuyerDebtItemsBatchImportResult>> ImportBuyerDebtItems(
+        [FromForm] ImportBuyerDebtItemsBatchRequest request,
+        CancellationToken cancellationToken)
+    {
+        if (request.Files is null || request.Files.Count == 0)
+        {
+            return BadRequest("At least one Excel file is required.");
+        }
+
+        var mapping = new CariDebtItemImportColumnMapping(
+            request.TransactionDateColumn,
+            request.MaterialDescriptionColumn,
+            request.QuantityColumn,
+            request.ListPriceColumn,
+            request.SalePriceColumn,
+            request.TotalAmountColumn,
+            request.PaymentColumn,
+            request.RemainingBalanceColumn);
+
+        var results = new List<BuyerDebtItemsBatchImportFileResult>();
+        var replacedAccounts = new HashSet<Guid>();
+        var createdCariCount = 0;
+        var totalRows = 0;
+        var totalCreatedCount = 0;
+        var totalFailedCount = 0;
+
+        foreach (var file in request.Files)
+        {
+            var safeFileName = file?.FileName ?? string.Empty;
+            if (file is null || file.Length == 0)
+            {
+                results.Add(new BuyerDebtItemsBatchImportFileResult(
+                    safeFileName,
+                    null,
+                    string.Empty,
+                    false,
+                    0,
+                    0,
+                    1,
+                    ["File is empty or invalid."]));
+                totalFailedCount++;
+                continue;
+            }
+
+            var buyerName = ExtractBuyerNameFromFileName(safeFileName);
+            if (string.IsNullOrWhiteSpace(buyerName))
+            {
+                results.Add(new BuyerDebtItemsBatchImportFileResult(
+                    safeFileName,
+                    null,
+                    string.Empty,
+                    false,
+                    0,
+                    0,
+                    1,
+                    ["Buyer name could not be resolved from file name."]));
+                totalFailedCount++;
+                continue;
+            }
+
+            var normalizedName = buyerName.Trim().ToLowerInvariant();
+            var account = await dbContext.CariAccounts.FirstOrDefaultAsync(
+                x => x.Name.ToLower() == normalizedName,
+                cancellationToken);
+
+            var cariCreated = false;
+            if (account is null)
+            {
+                account = new CariAccount
+                {
+                    Code = await GenerateUniqueBuyerCodeAsync(buyerName, cancellationToken),
+                    Name = buyerName,
+                    Type = CariType.BuyerBch,
+                    RiskLimit = 0m,
+                    MaturityDays = 0,
+                    CurrentBalance = 0m
+                };
+
+                dbContext.CariAccounts.Add(account);
+                await dbContext.SaveChangesAsync(cancellationToken);
+                cariCreated = true;
+                createdCariCount++;
+            }
+            else if (account.Type == CariType.Supplier)
+            {
+                account.Type = CariType.Both;
+                account.UpdatedAtUtc = DateTime.UtcNow;
+                await dbContext.SaveChangesAsync(cancellationToken);
+            }
+
+            await using var memoryStream = new MemoryStream();
+            await file.CopyToAsync(memoryStream, cancellationToken);
+
+            try
+            {
+                var replaceExisting = request.ReplaceExisting && replacedAccounts.Add(account.Id);
+                var response = await mediator.Send(
+                    new ImportCariDebtItemsCommand(account.Id, memoryStream.ToArray(), replaceExisting, mapping),
+                    cancellationToken);
+
+                totalRows += response.TotalRows;
+                totalCreatedCount += response.CreatedCount;
+                totalFailedCount += response.FailedCount;
+
+                results.Add(new BuyerDebtItemsBatchImportFileResult(
+                    safeFileName,
+                    account.Id,
+                    account.Name,
+                    cariCreated,
+                    response.TotalRows,
+                    response.CreatedCount,
+                    response.FailedCount,
+                    response.Errors));
+            }
+            catch (Exception ex)
+            {
+                totalFailedCount++;
+                results.Add(new BuyerDebtItemsBatchImportFileResult(
+                    safeFileName,
+                    account.Id,
+                    account.Name,
+                    cariCreated,
+                    0,
+                    0,
+                    1,
+                    [ex.Message]));
+            }
+        }
+
+        return Ok(new BuyerDebtItemsBatchImportResult(
+            request.Files.Count,
+            results.Count,
+            createdCariCount,
+            totalRows,
+            totalCreatedCount,
+            totalFailedCount,
+            results));
+    }
+
     [HttpPost("{cariAccountId:guid}/debt-items/import-excel")]
     [RequireSubscriptionFeature(SubscriptionFeatures.ExcelImport)]
     [Consumes("multipart/form-data")]
@@ -251,6 +399,108 @@ public sealed class CariAccountsController(IMediator mediator) : ControllerBase
 
         return Ok(response);
     }
+
+    private static string ExtractBuyerNameFromFileName(string fileName)
+    {
+        var baseName = Path.GetFileNameWithoutExtension(fileName ?? string.Empty);
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            return string.Empty;
+        }
+
+        var normalized = baseName
+            .Replace('_', ' ')
+            .Replace('-', ' ')
+            .Trim();
+
+        normalized = CollapseWhitespace(normalized);
+        if (normalized.Length > 150)
+        {
+            normalized = normalized[..150].Trim();
+        }
+
+        return normalized;
+    }
+
+    private async Task<string> GenerateUniqueBuyerCodeAsync(string buyerName, CancellationToken cancellationToken)
+    {
+        var token = NormalizeCodeToken(buyerName);
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            token = "BCH";
+        }
+
+        var candidate = $"BCH-{token}";
+        if (candidate.Length > 25)
+        {
+            candidate = candidate[..25];
+        }
+
+        var seed = candidate;
+        var sequence = 1;
+
+        while (await dbContext.CariAccounts.AnyAsync(x => x.Code == candidate, cancellationToken))
+        {
+            sequence++;
+            var suffix = $"-{sequence}";
+            var prefixLength = Math.Max(1, 25 - suffix.Length);
+            candidate = string.Concat(seed[..Math.Min(seed.Length, prefixLength)], suffix);
+        }
+
+        return candidate;
+    }
+
+    private static string NormalizeCodeToken(string value)
+    {
+        var upper = value
+            .Trim()
+            .ToUpperInvariant()
+            .Replace("İ", "I")
+            .Replace("I", "I")
+            .Replace("Ç", "C")
+            .Replace("Ğ", "G")
+            .Replace("Ö", "O")
+            .Replace("Ş", "S")
+            .Replace("Ü", "U");
+
+        var sb = new StringBuilder(upper.Length);
+        foreach (var ch in upper)
+        {
+            if (char.IsLetterOrDigit(ch))
+            {
+                sb.Append(ch);
+            }
+        }
+
+        return sb.ToString();
+    }
+
+    private static string CollapseWhitespace(string value)
+    {
+        var sb = new StringBuilder(value.Length);
+        var previousWhitespace = false;
+
+        foreach (var ch in value)
+        {
+            if (char.IsWhiteSpace(ch))
+            {
+                if (previousWhitespace)
+                {
+                    continue;
+                }
+
+                sb.Append(' ');
+                previousWhitespace = true;
+                continue;
+            }
+
+            sb.Append(ch);
+            previousWhitespace = false;
+        }
+
+        return sb.ToString().Trim();
+    }
 }
+
 
 

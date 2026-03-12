@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.Companies;
 using ERP.Application.Features.Companies.Commands.CreateCompany;
 using ERP.Application.Features.Companies.Commands.DeleteCompany;
@@ -13,6 +14,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/companies")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class CompaniesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -55,3 +57,5 @@ public sealed class CompaniesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 }
+
+

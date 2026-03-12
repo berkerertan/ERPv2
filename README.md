@@ -167,11 +167,13 @@ Asagidaki tablo API yuzeyinin yuksek seviyeli ozetidir.
 | --- | --- | --- |
 | `/api/auth` | Auth ve abonelik | login, refresh, logout, normal register, SaaS register, subscription plans, current user |
 | `/api/platform-admin` | Platform yonetimi | dashboard, audit logs, subscriber listesi, plan yonetimi, landing content, revenue analytics |
+| `/api/platform-admin/announcements` | Platform duyuru yonetimi | duyuru CRUD, publish/unpublish |
+| `/api/announcements` | Kullanici duyurulari | yayindaki duyurulari tum kullanicilar icin listeler |
 | `/api/public` | Public icerik | landing page iceriklerini public olarak sunar |
 | `/api/companies` | Sirketler | CRUD |
 | `/api/branches` | Subeler | CRUD |
 | `/api/warehouses` | Depolar | CRUD |
-| `/api/products` | Urunler | CRUD, suggestion arama |
+| `/api/products` | Urunler | CRUD, suggestion arama, toplu fiyat guncelleme, toplu stok guncelleme |
 | `/api/stock-movements` | Stok hareketleri | CRUD, transfer, kritik stok, bakiye gorunumu |
 | `/api/cari-accounts` | Cari hesaplar | CRUD, supplier/buyer listeleri, details, suggest, debt item CRUD, Excel import |
 | `/api/sales-orders` | Satis siparisleri | CRUD, approve |
@@ -217,6 +219,11 @@ Temel endpointler:
 - `PUT /api/platform-admin/plans/{plan}`
 - `GET /api/platform-admin/landing-content`
 - `PUT /api/platform-admin/landing-content/{key}`
+- `GET /api/platform-admin/announcements`
+- `POST /api/platform-admin/announcements`
+- `PUT /api/platform-admin/announcements/{id}`
+- `POST /api/platform-admin/announcements/{id}/publish`
+- `POST /api/platform-admin/announcements/{id}/unpublish`
 - `GET /api/platform-admin/analytics/revenue`
 
 Bu grup ile:
@@ -225,6 +232,7 @@ Bu grup ile:
 - Bir tenant'in planini ve subscription durumunu degistirebilirsiniz
 - Audit loglari sorgulayabilirsiniz
 - Landing page metinlerini panelden yonetebilirsiniz
+- Duyuru metinlerini panelden yayinlayip pasife alabilirsiniz
 - Toplam abone geliri ve plan bazli revenue analizini gorebilirsiniz
 
 ### 3. Master data modulleri
@@ -256,6 +264,7 @@ Yetenekler:
 - `PUT /api/cari-accounts/{id}/debt-items/{debtItemId}`
 - `DELETE /api/cari-accounts/{id}/debt-items/{debtItemId}`
 - `POST /api/cari-accounts/{id}/debt-items/import-excel`
+- `POST /api/cari-accounts/buyers/import-excel` (coklu dosya; alici adini dosya isminden cozer)
 
 Bu modulde mantik sunlardir:
 

@@ -1,4 +1,4 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Persistence;
 using MediatR;
 
 namespace ERP.Application.Features.Products.Queries.GetProductSuggestions;
@@ -22,7 +22,11 @@ public sealed class GetProductSuggestionsQueryHandler(IProductRepository product
             .Where(x =>
                 x.Code.Contains(search, StringComparison.OrdinalIgnoreCase)
                 || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (x.ShortDescription != null && x.ShortDescription.Contains(search, StringComparison.OrdinalIgnoreCase))
+                || (x.Brand != null && x.Brand.Contains(search, StringComparison.OrdinalIgnoreCase))
+                || (x.SubCategory != null && x.SubCategory.Contains(search, StringComparison.OrdinalIgnoreCase))
                 || (x.BarcodeEan13 != null && x.BarcodeEan13.Contains(search, StringComparison.OrdinalIgnoreCase))
+                || (x.AlternativeBarcodesCsv != null && x.AlternativeBarcodesCsv.Contains(search, StringComparison.OrdinalIgnoreCase))
                 || (x.QrCode != null && x.QrCode.Contains(search, StringComparison.OrdinalIgnoreCase)))
             .OrderByDescending(x => x.Code.StartsWith(search, StringComparison.OrdinalIgnoreCase))
             .ThenByDescending(x => x.Name.StartsWith(search, StringComparison.OrdinalIgnoreCase))
@@ -33,7 +37,16 @@ public sealed class GetProductSuggestionsQueryHandler(IProductRepository product
                 x.Code,
                 x.Name,
                 $"{x.Code} - {x.Name}",
-                string.IsNullOrWhiteSpace(x.Category) ? null : $"Kategori: {x.Category}"))
+                BuildSubtitle(x.Category, x.Brand, x.ProductType)))
             .ToList();
+    }
+
+    private static string? BuildSubtitle(string category, string? brand, string? productType)
+    {
+        var tokens = new[] { category, brand, productType }
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .ToArray();
+
+        return tokens.Length == 0 ? null : string.Join(" | ", tokens);
     }
 }

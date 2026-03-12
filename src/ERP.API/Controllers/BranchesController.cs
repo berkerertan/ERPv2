@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.Branches;
 using ERP.Application.Features.Branches.Commands.CreateBranch;
 using ERP.Application.Features.Branches.Commands.DeleteBranch;
@@ -13,6 +14,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/branches")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class BranchesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -55,3 +57,5 @@ public sealed class BranchesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 }
+
+

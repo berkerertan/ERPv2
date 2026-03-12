@@ -1,4 +1,4 @@
-﻿using ERP.API.Common;
+using ERP.API.Common;
 using ERP.API.Contracts.Accounting;
 using ERP.Application.Features.Reports.Queries.GetCariAging;
 using ERP.Application.Features.Reports.Queries.GetCariBalances;
@@ -18,7 +18,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/reports")]
-[Authorize]
+[RequirePolicy("TierUserOrAdmin")]
 [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
 public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext) : ControllerBase
 {
@@ -386,3 +386,4 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
                 });
     }
 }
+

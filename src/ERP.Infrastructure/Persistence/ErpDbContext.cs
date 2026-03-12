@@ -15,6 +15,7 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<TenantAccount> TenantAccounts => Set<TenantAccount>();
     public DbSet<SubscriptionPlanSetting> SubscriptionPlanSettings => Set<SubscriptionPlanSetting>();
     public DbSet<LandingPageContent> LandingPageContents => Set<LandingPageContent>();
+    public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<SystemActivityLog> SystemActivityLogs => Set<SystemActivityLog>();
 
     public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
@@ -89,6 +90,18 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.Property(x => x.Key).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Title).HasMaxLength(200).IsRequired();
             builder.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<Announcement>(builder =>
+        {
+            builder.ToTable("Announcements");
+            builder.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Content).HasMaxLength(4000).IsRequired();
+            builder.HasIndex(x => new { x.IsPublished, x.Priority, x.CreatedAtUtc });
+            builder.HasIndex(x => x.StartsAtUtc);
+            builder.HasIndex(x => x.EndsAtUtc);
 
             ConfigureSoftDelete(builder);
         });
@@ -305,12 +318,32 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasIndex(x => new { x.TenantAccountId, x.QrCode }).IsUnique().HasFilter("[QrCode] IS NOT NULL AND [IsDeleted] = 0");
             builder.Property(x => x.Code).HasMaxLength(30).IsRequired();
             builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.ShortDescription).HasMaxLength(500);
             builder.Property(x => x.Unit).HasMaxLength(10).IsRequired();
+            builder.Property(x => x.AlternativeUnitsCsv).HasMaxLength(500);
             builder.Property(x => x.Category).HasMaxLength(100);
+            builder.Property(x => x.SubCategory).HasMaxLength(100);
+            builder.Property(x => x.Brand).HasMaxLength(100);
             builder.Property(x => x.BarcodeEan13).HasMaxLength(13);
+            builder.Property(x => x.AlternativeBarcodesCsv).HasMaxLength(2000);
             builder.Property(x => x.QrCode).HasMaxLength(300);
+            builder.Property(x => x.ProductType).HasMaxLength(50);
+            builder.Property(x => x.PurchaseVatRate).HasPrecision(5, 2);
+            builder.Property(x => x.SalesVatRate).HasPrecision(5, 2);
+            builder.Property(x => x.IsActive).HasDefaultValue(true);
+            builder.Property(x => x.MinimumStockLevel).HasPrecision(18, 3);
             builder.Property(x => x.DefaultSalePrice).HasPrecision(18, 2);
             builder.Property(x => x.CriticalStockLevel).HasPrecision(18, 3);
+            builder.Property(x => x.MaximumStockLevel).HasPrecision(18, 3);
+            builder.Property(x => x.DefaultShelfCode).HasMaxLength(100);
+            builder.Property(x => x.ImageUrl).HasMaxLength(1000);
+            builder.Property(x => x.TechnicalDocumentUrl).HasMaxLength(1000);
+            builder.Property(x => x.LastPurchasePrice).HasPrecision(18, 2);
+            builder.Property(x => x.LastSalePrice).HasPrecision(18, 2);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.DefaultWarehouseId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             ConfigureTenantEntity(builder);
         });

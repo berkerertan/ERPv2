@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.PurchaseOrders;
 using ERP.Application.Features.PurchaseOrders.Commands.ApprovePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.CreatePurchaseOrder;
@@ -14,6 +15,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/purchase-orders")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class PurchaseOrdersController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -77,3 +79,5 @@ public sealed class PurchaseOrdersController(IMediator mediator) : ControllerBas
         return NoContent();
     }
 }
+
+

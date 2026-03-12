@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.Auth;
 using ERP.Application.Abstractions.Security;
 using ERP.Application.Common.Models;
@@ -144,7 +145,7 @@ public sealed class AuthController(
             planConfig?.Features ?? []));
     }
 
-    [Authorize(Roles = AppRoles.AdminOrTier)]
+    [RequirePolicy("TierUserOrAdmin")]
     [HttpGet("me")]
     [ProducesResponseType(typeof(CurrentUserDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<CurrentUserDto>> Me(CancellationToken cancellationToken)
@@ -184,7 +185,7 @@ public sealed class AuthController(
             features));
     }
 
-    [Authorize(Roles = AppRoles.AdminOrTier)]
+    [RequirePolicy("TierUserOrAdmin")]
     [HttpPost("logout")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Logout([FromBody] LogoutRequest? request, CancellationToken cancellationToken)
@@ -214,3 +215,5 @@ public sealed class AuthController(
         return NoContent();
     }
 }
+
+

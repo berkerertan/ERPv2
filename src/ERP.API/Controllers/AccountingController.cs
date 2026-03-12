@@ -1,7 +1,9 @@
-﻿using ERP.API.Contracts.Accounting;
+using ERP.API.Common;
+using ERP.API.Contracts.Accounting;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
 using ERP.Infrastructure.Persistence;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -9,6 +11,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/accounting")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class AccountingController(ErpDbContext dbContext) : ControllerBase
 {
     private const decimal Tolerance = 0.01m;
@@ -1280,5 +1283,7 @@ public sealed class AccountingController(ErpDbContext dbContext) : ControllerBas
             ? string.Empty
             : iban.Replace(" ", string.Empty).Trim().ToUpperInvariant();
 }
+
+
 
 

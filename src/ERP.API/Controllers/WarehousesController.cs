@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.Warehouses;
 using ERP.Application.Features.Warehouses.Commands.CreateWarehouse;
 using ERP.Application.Features.Warehouses.Commands.DeleteWarehouse;
@@ -13,6 +14,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/warehouses")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class WarehousesController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -55,3 +57,5 @@ public sealed class WarehousesController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 }
+
+

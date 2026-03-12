@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.SalesOrders;
 using ERP.Application.Features.SalesOrders.Commands.ApproveSalesOrder;
 using ERP.Application.Features.SalesOrders.Commands.CreateSalesOrder;
@@ -14,6 +15,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/sales-orders")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class SalesOrdersController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -77,3 +79,5 @@ public sealed class SalesOrdersController(IMediator mediator) : ControllerBase
         return NoContent();
     }
 }
+
+

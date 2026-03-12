@@ -11,7 +11,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/pos")]
-[Authorize]
+[RequirePolicy("TierUserOrAdmin")]
 [RequireSubscriptionFeature(SubscriptionFeatures.Pos)]
 public sealed class PosController(IMediator mediator) : ControllerBase
 {
@@ -42,3 +42,4 @@ public sealed class PosController(IMediator mediator) : ControllerBase
         return Ok(response);
     }
 }
+

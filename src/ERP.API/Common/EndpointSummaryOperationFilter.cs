@@ -79,6 +79,11 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Arama kutusu icin hizli onerileri listeler.";
         }
 
+        if (p.Contains("/api/cari-accounts/buyers/import-excel"))
+        {
+            return "Birden fazla alici Excel dosyasini yukler; alici adini dosya isminden cikarip borc kalemlerini ice aktarir.";
+        }
+
         if (p.Contains("/import-excel"))
         {
             return "Excel dosyasindan toplu veri ice aktarir.";
@@ -87,6 +92,26 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
         if (p.Contains("/scan"))
         {
             return "Barkod ile urun bilgisini getirir.";
+        }
+
+        if (p.Contains("/api/products/bulk-price-update"))
+        {
+            return "Secili urunlerin satis fiyatlarini toplu olarak gunceller.";
+        }
+
+        if (p.Contains("/api/products/bulk-stock-update"))
+        {
+            return "Secili urunler icin toplu stok artisi/azalisi hareketleri olusturur.";
+        }
+
+        if (p.Contains("/api/platform-admin/announcements"))
+        {
+            return "Platform admin duyurulari olusturur, gunceller ve yayin durumunu yonetir.";
+        }
+
+        if (p.Contains("/api/announcements"))
+        {
+            return "Yayinda olan duyurulari tum kullanicilar icin listeler veya detayini getirir.";
         }
 
         if (p.Contains("/quick-sales"))

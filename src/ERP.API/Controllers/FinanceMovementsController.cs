@@ -1,3 +1,4 @@
+using ERP.API.Common;
 using ERP.API.Contracts.FinanceMovements;
 using ERP.Application.Features.FinanceMovements.Commands.CreateFinanceMovement;
 using ERP.Application.Features.FinanceMovements.Commands.DeleteFinanceMovement;
@@ -13,6 +14,7 @@ namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/finance-movements")]
+[RequirePolicy("TierUserOrAdmin")]
 public sealed class FinanceMovementsController(IMediator mediator) : ControllerBase
 {
     [HttpGet]
@@ -69,3 +71,5 @@ public sealed class FinanceMovementsController(IMediator mediator) : ControllerB
         return NoContent();
     }
 }
+
+
