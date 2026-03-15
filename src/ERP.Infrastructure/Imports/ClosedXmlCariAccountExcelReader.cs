@@ -44,12 +44,14 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
             var row = worksheet.Row(rowNumber);
             var code = GetCellValue(row, columns.Code);
             var name = GetCellValue(row, columns.Name);
+            var phone = GetCellValue(row, columns.Phone);
             var type = GetCellValue(row, columns.Type);
             var riskLimit = GetCellValue(row, columns.RiskLimit);
             var maturityDays = GetCellValue(row, columns.MaturityDays);
 
             if (string.IsNullOrWhiteSpace(code)
                 && string.IsNullOrWhiteSpace(name)
+                && string.IsNullOrWhiteSpace(phone)
                 && string.IsNullOrWhiteSpace(type)
                 && string.IsNullOrWhiteSpace(riskLimit)
                 && string.IsNullOrWhiteSpace(maturityDays))
@@ -61,6 +63,7 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
                 rowNumber,
                 code,
                 name,
+                phone,
                 type,
                 riskLimit,
                 maturityDays));
@@ -69,7 +72,7 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
         return Task.FromResult<IReadOnlyList<CariAccountExcelRow>>(rows);
     }
 
-    private static (int? Code, int? Name, int? Type, int? RiskLimit, int? MaturityDays) ResolveColumns(
+    private static (int? Code, int? Name, int? Phone, int? Type, int? RiskLimit, int? MaturityDays) ResolveColumns(
         IXLRow headerRow,
         int columnCount,
         CariImportColumnMapping? mapping)
@@ -98,6 +101,11 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
             "MALZEMEACIKLAMA",
             "AD", "ADI", "NAME", "UNVAN", "TICARIUNVAN", "ADSOYAD", "CARIADI", "ACCOUNTNAME");
 
+        var phone = ResolveColumn(
+            normalized,
+            mapping?.PhoneColumn,
+            "TELEFON", "TEL", "PHONE", "MOBILE", "GSM", "CEPTELEFONU");
+
         var type = ResolveColumn(
             normalized,
             mapping?.TypeColumn,
@@ -114,7 +122,7 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
             mapping?.MaturityDaysColumn,
             "VADEGUN", "VADEGUNU", "MATURITYDAYS", "MATURITY", "GUN");
 
-        return (code, name, type, riskLimit, maturityDays);
+        return (code, name, phone, type, riskLimit, maturityDays);
     }
 
     private static int? ResolveColumn(
@@ -157,12 +165,12 @@ public sealed class ClosedXmlCariAccountExcelReader : ICariAccountExcelReader
         return value
             .Trim()
             .ToUpperInvariant()
-            .Replace("Ý", "I")
-            .Replace("Ç", "C")
-            .Replace("Ð", "G")
-            .Replace("Ö", "O")
-            .Replace("Þ", "S")
-            .Replace("Ü", "U")
+            .Replace("\u0130", "I")
+            .Replace("\u00C7", "C")
+            .Replace("\u011E", "G")
+            .Replace("\u00D6", "O")
+            .Replace("\u015E", "S")
+            .Replace("\u00DC", "U")
             .Replace(" ", string.Empty)
             .Replace("_", string.Empty)
             .Replace("-", string.Empty)

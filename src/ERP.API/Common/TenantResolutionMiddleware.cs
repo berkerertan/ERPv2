@@ -86,6 +86,6 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
             return true;
         }
 
-        return !authEnforced && path.StartsWith("/api/platform-admin", StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 }

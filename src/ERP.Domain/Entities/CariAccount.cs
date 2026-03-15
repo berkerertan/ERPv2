@@ -7,6 +7,7 @@ public sealed class CariAccount : TenantOwnedEntity
 {
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string? Phone { get; set; }
     public CariType Type { get; set; }
     public decimal RiskLimit { get; set; }
     public int MaturityDays { get; set; }

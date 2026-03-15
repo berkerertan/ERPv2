@@ -10,6 +10,7 @@ public sealed class ImportCariAccountsRequest
     // Optional dynamic column mapping
     public string? CodeColumn { get; set; }
     public string? NameColumn { get; set; }
+    public string? PhoneColumn { get; set; }
     public string? TypeColumn { get; set; }
     public string? RiskLimitColumn { get; set; }
     public string? MaturityDaysColumn { get; set; }

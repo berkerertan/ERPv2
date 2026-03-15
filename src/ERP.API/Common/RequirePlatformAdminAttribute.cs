@@ -10,11 +10,6 @@ public sealed class RequirePlatformAdminAttribute : Attribute, IAuthorizationFil
 {
     public void OnAuthorization(AuthorizationFilterContext context)
     {
-        if (!SecurityRuntime.IsAuthorizationEnforced(context.HttpContext.RequestServices))
-        {
-            return;
-        }
-
         var user = context.HttpContext.User;
 
         if (user.Identity?.IsAuthenticated != true)

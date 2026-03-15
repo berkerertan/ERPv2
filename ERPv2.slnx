@@ -5,4 +5,7 @@
     <Project Path="src/ERP.Domain/ERP.Domain.csproj" />
     <Project Path="src/ERP.Infrastructure/ERP.Infrastructure.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/ERP.API.IntegrationTests/ERP.API.IntegrationTests.csproj" />
+  </Folder>
 </Solution>

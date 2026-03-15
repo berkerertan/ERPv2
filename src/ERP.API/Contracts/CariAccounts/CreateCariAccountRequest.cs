@@ -7,4 +7,5 @@ public sealed record CreateCariAccountRequest(
     string Name,
     CariType Type,
     decimal RiskLimit,
-    int MaturityDays);
+    int MaturityDays,
+    string? Phone = null);

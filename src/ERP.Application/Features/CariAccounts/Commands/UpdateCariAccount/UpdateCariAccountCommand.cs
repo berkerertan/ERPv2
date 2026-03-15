@@ -9,4 +9,5 @@ public sealed record UpdateCariAccountCommand(
     string Name,
     CariType Type,
     decimal RiskLimit,
-    int MaturityDays) : IRequest;
+    int MaturityDays,
+    string? Phone = null) : IRequest;

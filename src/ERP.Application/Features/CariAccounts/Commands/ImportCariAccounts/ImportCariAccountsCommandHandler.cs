@@ -59,6 +59,7 @@ public sealed class ImportCariAccountsCommandHandler(
         {
             var name = row.Name.Trim();
             var code = row.Code.Trim();
+            var phone = NormalizePhone(row.Phone);
             var typeText = row.Type.Trim();
 
             if (string.IsNullOrWhiteSpace(name))
@@ -81,6 +82,18 @@ public sealed class ImportCariAccountsCommandHandler(
             if (name.Length > 150)
             {
                 errors.Add($"Row {row.RowNumber}: Name length exceeds 150 characters.");
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(phone) && phone.Length > 30)
+            {
+                errors.Add($"Row {row.RowNumber}: Phone length exceeds 30 characters.");
+                continue;
+            }
+
+            if (!string.IsNullOrWhiteSpace(phone) && !IsValidPhone(phone))
+            {
+                errors.Add($"Row {row.RowNumber}: Invalid phone format '{row.Phone}'.");
                 continue;
             }
 
@@ -139,6 +152,7 @@ public sealed class ImportCariAccountsCommandHandler(
                 {
                     Code = code,
                     Name = name,
+                    Phone = phone,
                     Type = type,
                     RiskLimit = riskLimit,
                     MaturityDays = maturityDays,
@@ -156,6 +170,7 @@ public sealed class ImportCariAccountsCommandHandler(
             }
 
             existing.Name = name;
+            existing.Phone = phone;
             existing.Type = type;
             existing.RiskLimit = riskLimit;
             existing.MaturityDays = maturityDays;
@@ -270,6 +285,37 @@ public sealed class ImportCariAccountsCommandHandler(
 
         return int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out result)
             || int.TryParse(value, NumberStyles.Integer, CultureInfo.GetCultureInfo("tr-TR"), out result);
+    }
+
+    private static string? NormalizePhone(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var normalized = value.Trim();
+        return string.IsNullOrWhiteSpace(normalized) ? null : normalized;
+    }
+
+    private static bool IsValidPhone(string value)
+    {
+        foreach (var ch in value)
+        {
+            if (char.IsDigit(ch))
+            {
+                continue;
+            }
+
+            if (ch is '+' or '-' or '(' or ')' or ' ')
+            {
+                continue;
+            }
+
+            return false;
+        }
+
+        return true;
     }
 
     private static string Normalize(string value)

@@ -22,7 +22,8 @@ public sealed class GetCariAccountSuggestionsQueryHandler(ICariAccountRepository
 
         query = query.Where(x =>
             x.Code.Contains(search, StringComparison.OrdinalIgnoreCase)
-            || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+            || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+            || (x.Phone != null && x.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)));
 
         if (request.Type.HasValue)
         {
@@ -46,7 +47,17 @@ public sealed class GetCariAccountSuggestionsQueryHandler(ICariAccountRepository
                 x.Name,
                 x.Type,
                 $"{x.Code} - {x.Name}",
-                $"Tip: {x.Type} | Bakiye: {x.CurrentBalance:N2}"))
+                BuildSubtitle(x.Type, x.CurrentBalance, x.Phone)))
             .ToList();
+    }
+
+    private static string BuildSubtitle(CariType type, decimal currentBalance, string? phone)
+    {
+        if (string.IsNullOrWhiteSpace(phone))
+        {
+            return $"Tip: {type} | Bakiye: {currentBalance:N2}";
+        }
+
+        return $"Tip: {type} | Tel: {phone} | Bakiye: {currentBalance:N2}";
     }
 }

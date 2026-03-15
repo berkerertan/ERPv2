@@ -20,7 +20,8 @@ public sealed class GetCariAccountsQueryHandler(ICariAccountRepository repositor
             var search = request.Search.Trim();
             query = query.Where(x =>
                 x.Code.Contains(search, StringComparison.OrdinalIgnoreCase)
-                || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase));
+                || x.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (x.Phone != null && x.Phone.Contains(search, StringComparison.OrdinalIgnoreCase)));
         }
 
         if (request.Type.HasValue)
@@ -46,6 +47,7 @@ public sealed class GetCariAccountsQueryHandler(ICariAccountRepository repositor
                 x.Id,
                 x.Code,
                 x.Name,
+                x.Phone,
                 x.Type,
                 x.RiskLimit,
                 x.MaturityDays,

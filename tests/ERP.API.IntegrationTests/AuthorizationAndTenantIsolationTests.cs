@@ -46,6 +46,31 @@ public sealed class AuthorizationAndTenantIsolationTests
     }
 
     [Fact]
+    public async Task Tenant_User_Should_Not_Access_Platform_Admin_Endpoints_When_Auth_Is_Disabled()
+    {
+        await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: false);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var token = await LoginAsync(client, "test.admin", "Test123!");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        var response = await client.GetAsync("/api/platform-admin/subscribers");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Platform_Admin_Endpoint_Should_Return_Unauthorized_Without_Token_When_Auth_Is_Disabled()
+    {
+        await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: false);
+        using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
+
+        var response = await client.GetAsync("/api/platform-admin/subscribers");
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
     public async Task Tenant_Isolation_Should_Prevent_Cross_Tenant_Product_Read()
     {
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: true);

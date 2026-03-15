@@ -246,6 +246,7 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasIndex(x => new { x.TenantAccountId, x.Code }).IsUnique().HasFilter("[IsDeleted] = 0");
             builder.Property(x => x.Code).HasMaxLength(25).IsRequired();
             builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            builder.Property(x => x.Phone).HasMaxLength(30);
             builder.Property(x => x.RiskLimit).HasPrecision(18, 2);
             builder.Property(x => x.CurrentBalance).HasPrecision(18, 2);
             builder.HasMany(x => x.DebtItems)

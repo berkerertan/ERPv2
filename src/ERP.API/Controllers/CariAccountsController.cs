@@ -131,7 +131,8 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
             request.Name,
             request.Type,
             request.RiskLimit,
-            request.MaturityDays);
+            request.MaturityDays,
+            request.Phone);
 
         var id = await mediator.Send(command, cancellationToken);
         return Created($"/api/cari-accounts/{id}", id);
@@ -147,7 +148,8 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
             request.Name,
             request.Type,
             request.RiskLimit,
-            request.MaturityDays);
+            request.MaturityDays,
+            request.Phone);
 
         await mediator.Send(command, cancellationToken);
         return NoContent();

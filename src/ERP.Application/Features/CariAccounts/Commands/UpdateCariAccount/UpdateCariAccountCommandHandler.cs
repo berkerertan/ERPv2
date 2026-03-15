@@ -20,10 +20,16 @@ public sealed class UpdateCariAccountCommandHandler(ICariAccountRepository repos
 
         account.Code = request.Code;
         account.Name = request.Name;
+        account.Phone = NormalizePhone(request.Phone);
         account.Type = request.Type;
         account.RiskLimit = request.RiskLimit;
         account.MaturityDays = request.MaturityDays;
 
         await repository.UpdateAsync(account, cancellationToken);
+    }
+
+    private static string? NormalizePhone(string? phone)
+    {
+        return string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
     }
 }

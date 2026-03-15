@@ -19,6 +19,7 @@ public sealed class CreateCariAccountCommandHandler(ICariAccountRepository repos
         {
             Code = request.Code,
             Name = request.Name,
+            Phone = NormalizePhone(request.Phone),
             Type = request.Type,
             RiskLimit = request.RiskLimit,
             MaturityDays = request.MaturityDays,
@@ -27,5 +28,10 @@ public sealed class CreateCariAccountCommandHandler(ICariAccountRepository repos
 
         await repository.AddAsync(account, cancellationToken);
         return account.Id;
+    }
+
+    private static string? NormalizePhone(string? phone)
+    {
+        return string.IsNullOrWhiteSpace(phone) ? null : phone.Trim();
     }
 }

@@ -17,6 +17,7 @@ public sealed class GetCariAccountByIdQueryHandler(ICariAccountRepository reposi
             account.Id,
             account.Code,
             account.Name,
+            account.Phone,
             account.Type,
             account.RiskLimit,
             account.MaturityDays,
