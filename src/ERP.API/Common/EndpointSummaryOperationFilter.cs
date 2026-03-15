@@ -217,6 +217,16 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Onayli satin alma siparisinden alis faturasi olusturur.";
         }
 
+        if (p.Contains("/api/invoices/e-fatura"))
+        {
+            return "E-Fatura tipindeki faturalarin liste ekranini getirir.";
+        }
+
+        if (p.Contains("/api/invoices/e-arsiv"))
+        {
+            return "E-Arsiv tipindeki faturalarin liste ekranini getirir.";
+        }
+
         if (p.Contains("/reports/finance/profitability"))
         {
             return "Karlilik raporlarini urun/musteri/sube bazinda getirir.";

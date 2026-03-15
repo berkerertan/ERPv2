@@ -21,20 +21,11 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
     [ProducesResponseType(typeof(IReadOnlyList<InvoiceDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<InvoiceDto>>> GetAll(
         [FromQuery] InvoiceType? invoiceType,
+        [FromQuery] InvoiceCategory? invoiceCategory,
         [FromQuery] InvoiceStatus? status,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.Invoices.AsNoTracking();
-
-        if (invoiceType.HasValue)
-        {
-            query = query.Where(x => x.InvoiceType == invoiceType.Value);
-        }
-
-        if (status.HasValue)
-        {
-            query = query.Where(x => x.Status == status.Value);
-        }
+        var query = ApplyFilters(dbContext.Invoices.AsNoTracking(), invoiceType, invoiceCategory, status);
 
         var invoices = await query
             .OrderByDescending(x => x.IssueDateUtc)
@@ -43,6 +34,38 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
             .ToListAsync(cancellationToken);
 
         return Ok(invoices);
+    }
+
+    [HttpGet("e-fatura")]
+    [ProducesResponseType(typeof(IReadOnlyList<InvoiceListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<InvoiceListItemDto>>> GetEFaturaList(
+        [FromQuery] InvoiceCategory? invoiceCategory,
+        [FromQuery] InvoiceStatus? status,
+        CancellationToken cancellationToken)
+    {
+        var query = ApplyFilters(dbContext.Invoices.AsNoTracking(), InvoiceType.EFatura, invoiceCategory, status);
+        var invoices = await query
+            .OrderByDescending(x => x.IssueDateUtc)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return Ok(invoices.Select(MapListItem).ToList());
+    }
+
+    [HttpGet("e-arsiv")]
+    [ProducesResponseType(typeof(IReadOnlyList<InvoiceListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<InvoiceListItemDto>>> GetEArsivList(
+        [FromQuery] InvoiceCategory? invoiceCategory,
+        [FromQuery] InvoiceStatus? status,
+        CancellationToken cancellationToken)
+    {
+        var query = ApplyFilters(dbContext.Invoices.AsNoTracking(), InvoiceType.EArsiv, invoiceCategory, status);
+        var invoices = await query
+            .OrderByDescending(x => x.IssueDateUtc)
+            .ThenByDescending(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        return Ok(invoices.Select(MapListItem).ToList());
     }
 
     [HttpGet("{id:guid}")]
@@ -124,12 +147,13 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 
         var invoice = new Invoice
         {
+            InvoiceNumber = NormalizeInvoiceNumber(request.InvoiceNumber),
             InvoiceType = request.InvoiceType,
             InvoiceCategory = request.InvoiceCategory,
             Status = InvoiceStatus.Draft,
             CariAccountId = cari.Id,
             CariAccountName = cari.Name,
-            TaxNumber = string.Empty,
+            TaxNumber = NormalizeTaxNumber(request.TaxNumber),
             IssueDateUtc = request.IssueDate,
             DueDateUtc = request.DueDate,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency.Trim().ToUpperInvariant(),
@@ -194,13 +218,14 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 
         var invoice = new Invoice
         {
+            InvoiceNumber = NormalizeInvoiceNumber(request.InvoiceNumber),
             InvoiceType = request.InvoiceType,
             InvoiceCategory = InvoiceCategory.Satis,
             Status = InvoiceStatus.Draft,
             SalesOrderId = order.Id,
             CariAccountId = cari.Id,
             CariAccountName = cari.Name,
-            TaxNumber = string.Empty,
+            TaxNumber = NormalizeTaxNumber(request.TaxNumber),
             IssueDateUtc = request.IssueDate ?? DateTime.UtcNow,
             DueDateUtc = request.DueDate,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency.Trim().ToUpperInvariant(),
@@ -264,13 +289,14 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 
         var invoice = new Invoice
         {
+            InvoiceNumber = NormalizeInvoiceNumber(request.InvoiceNumber),
             InvoiceType = request.InvoiceType,
             InvoiceCategory = InvoiceCategory.Alis,
             Status = InvoiceStatus.Draft,
             PurchaseOrderId = order.Id,
             CariAccountId = cari.Id,
             CariAccountName = cari.Name,
-            TaxNumber = string.Empty,
+            TaxNumber = NormalizeTaxNumber(request.TaxNumber),
             IssueDateUtc = request.IssueDate ?? DateTime.UtcNow,
             DueDateUtc = request.DueDate,
             Currency = string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency.Trim().ToUpperInvariant(),
@@ -317,6 +343,8 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 
         invoice.InvoiceType = request.InvoiceType;
         invoice.InvoiceCategory = request.InvoiceCategory;
+        invoice.InvoiceNumber = NormalizeInvoiceNumber(request.InvoiceNumber);
+        invoice.TaxNumber = NormalizeTaxNumber(request.TaxNumber);
         invoice.IssueDateUtc = request.IssueDate;
         invoice.DueDateUtc = request.DueDate;
         invoice.Currency = string.IsNullOrWhiteSpace(request.Currency) ? "TRY" : request.Currency.Trim().ToUpperInvariant();
@@ -566,6 +594,86 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
         grandTotal = Math.Round(grandTotal, 2);
 
         return createdItems;
+    }
+
+    private static IQueryable<Invoice> ApplyFilters(
+        IQueryable<Invoice> query,
+        InvoiceType? invoiceType,
+        InvoiceCategory? invoiceCategory,
+        InvoiceStatus? status)
+    {
+        if (invoiceType.HasValue)
+        {
+            query = query.Where(x => x.InvoiceType == invoiceType.Value);
+        }
+
+        if (invoiceCategory.HasValue)
+        {
+            query = query.Where(x => x.InvoiceCategory == invoiceCategory.Value);
+        }
+
+        if (status.HasValue)
+        {
+            query = query.Where(x => x.Status == status.Value);
+        }
+
+        return query;
+    }
+
+    private static InvoiceListItemDto MapListItem(Invoice invoice)
+    {
+        var isSupplierInvoice = invoice.InvoiceCategory == InvoiceCategory.Alis;
+
+        return new InvoiceListItemDto(
+            invoice.Id,
+            string.IsNullOrWhiteSpace(invoice.InvoiceNumber) ? "-" : invoice.InvoiceNumber,
+            invoice.InvoiceType,
+            invoice.InvoiceCategory,
+            isSupplierInvoice ? null : invoice.CariAccountId,
+            isSupplierInvoice ? null : invoice.CariAccountName,
+            isSupplierInvoice ? invoice.CariAccountId : null,
+            isSupplierInvoice ? invoice.CariAccountName : null,
+            invoice.TaxNumber,
+            invoice.GrandTotal,
+            invoice.TaxTotal,
+            invoice.Status,
+            MapStatusText(invoice.Status),
+            invoice.IssueDateUtc);
+    }
+
+    private static string MapStatusText(InvoiceStatus status)
+    {
+        return status switch
+        {
+            InvoiceStatus.Approved => "Onaylandi",
+            InvoiceStatus.Rejected => "Red",
+            InvoiceStatus.Cancelled => "Red",
+            InvoiceStatus.Draft => "Bekliyor",
+            InvoiceStatus.Sent => "Bekliyor",
+            _ => "Bekliyor"
+        };
+    }
+
+    private static string NormalizeInvoiceNumber(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Trim();
+        return normalized.Length <= 40 ? normalized : normalized[..40];
+    }
+
+    private static string NormalizeTaxNumber(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var normalized = value.Trim();
+        return normalized.Length <= 20 ? normalized : normalized[..20];
     }
 
     private static InvoiceDto MapInvoice(Invoice invoice)
