@@ -120,7 +120,12 @@ if (securityOptions.EnforceAuthorization)
 app.UseMiddleware<ActivityLoggingMiddleware>();
 
 app.MapControllers();
-app.MapGet("/", () => Results.Redirect("/swagger")).AllowAnonymous();
+app.MapGet("/", () => Results.Ok(new
+{
+    service = "ERPv2 API",
+    environment = app.Environment.EnvironmentName,
+    docs = app.Environment.IsDevelopment() ? "/swagger" : null
+})).AllowAnonymous();
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
@@ -129,4 +134,3 @@ app.MapGet("/health", () => Results.Ok(new
 })).AllowAnonymous();
 
 app.Run();
-

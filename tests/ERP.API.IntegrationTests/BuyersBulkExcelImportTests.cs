@@ -15,7 +15,7 @@ public sealed class BuyersBulkExcelImportTests
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: true);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var token = await LoginAsync(client, "test.admin", "Test123!");
+        var token = await LoginAsync(client, "demo", "Test123!");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var suffix = Guid.NewGuid().ToString("N")[..6].ToUpperInvariant();

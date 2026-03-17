@@ -20,7 +20,7 @@ public sealed class ErpApiWebApplicationFactory(bool enforceAuthorization) : Web
                     $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true",
                 ["Security:EnforceAuthorization"] = enforceAuthorization ? "true" : "false",
                 ["TenantResolution:EnableDevelopmentFallback"] = "true",
-                ["TenantResolution:DefaultTenantCode"] = "dev-retail"
+                ["TenantResolution:DefaultTenantCode"] = "demo-tier3"
             };
 
             configBuilder.AddInMemoryCollection(testSettings);

@@ -37,7 +37,7 @@ public sealed class AuthorizationAndTenantIsolationTests
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: true);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var token = await LoginAsync(client, "test.admin", "Test123!");
+        var token = await LoginAsync(client, "demo", "Test123!");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/platform-admin/subscribers");
@@ -51,7 +51,7 @@ public sealed class AuthorizationAndTenantIsolationTests
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: false);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var token = await LoginAsync(client, "test.admin", "Test123!");
+        var token = await LoginAsync(client, "demo", "Test123!");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
         var response = await client.GetAsync("/api/platform-admin/subscribers");
@@ -77,8 +77,8 @@ public sealed class AuthorizationAndTenantIsolationTests
         using var retailClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
         using var wholesaleClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var retailToken = await LoginAsync(retailClient, "test.admin", "Test123!");
-        var wholesaleToken = await LoginAsync(wholesaleClient, "test.admin.2", "Test123!");
+        var retailToken = await LoginAsync(retailClient, "demo", "Test123!");
+        var wholesaleToken = await LoginAsync(wholesaleClient, "demo.tier2", "Test123!");
 
         retailClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", retailToken);
         wholesaleClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", wholesaleToken);
@@ -102,7 +102,7 @@ public sealed class AuthorizationAndTenantIsolationTests
         Assert.Equal(HttpStatusCode.NotFound, otherTenantRead.StatusCode);
 
         wholesaleClient.DefaultRequestHeaders.Remove("X-Tenant-Code");
-        wholesaleClient.DefaultRequestHeaders.Add("X-Tenant-Code", "dev-retail");
+        wholesaleClient.DefaultRequestHeaders.Add("X-Tenant-Code", "demo-tier3");
 
         var bypassAttempt = await wholesaleClient.GetAsync($"/api/products/{createdProductId}");
         Assert.Equal(HttpStatusCode.NotFound, bypassAttempt.StatusCode);

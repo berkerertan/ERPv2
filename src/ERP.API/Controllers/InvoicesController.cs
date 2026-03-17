@@ -5,7 +5,6 @@ using ERP.Domain.Constants;
 using ERP.Domain.Enums;
 using ERP.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using System.Text;
 
@@ -82,6 +81,38 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
         }
 
         return Ok(MapInvoice(invoice));
+    }
+
+    [HttpGet("{id:guid}/detail")]
+    [ProducesResponseType(typeof(InvoiceDetailDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<InvoiceDetailDto>> GetDetail(Guid id, CancellationToken cancellationToken)
+    {
+        var invoice = await dbContext.Invoices
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+
+        if (invoice is null)
+        {
+            return NotFound();
+        }
+
+        var items = await dbContext.InvoiceItems
+            .AsNoTracking()
+            .Where(x => x.InvoiceId == id)
+            .OrderBy(x => x.CreatedAtUtc)
+            .Select(x => MapItem(x))
+            .ToListAsync(cancellationToken);
+
+        var isSupplierInvoice = invoice.InvoiceCategory == InvoiceCategory.Alis;
+        var response = new InvoiceDetailDto(
+            MapInvoice(invoice),
+            items,
+            isSupplierInvoice ? null : invoice.CariAccountId,
+            isSupplierInvoice ? null : invoice.CariAccountName,
+            isSupplierInvoice ? invoice.CariAccountId : null,
+            isSupplierInvoice ? invoice.CariAccountName : null);
+
+        return Ok(response);
     }
 
     [HttpGet("{id:guid}/items")]
@@ -482,6 +513,26 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
         return File(bytes, "application/xml", $"{GetSafeInvoiceNo(invoice)}.xml");
     }
 
+    [HttpGet("{id:guid}/preview-html")]
+    [Produces("text/html")]
+    public async Task<IActionResult> GetPreviewHtml(Guid id, CancellationToken cancellationToken)
+    {
+        var invoice = await dbContext.Invoices.AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (invoice is null)
+        {
+            return NotFound();
+        }
+
+        var items = await dbContext.InvoiceItems
+            .AsNoTracking()
+            .Where(x => x.InvoiceId == id)
+            .OrderBy(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var html = BuildPreviewHtml(invoice, items);
+        return Content(html, "text/html; charset=utf-8");
+    }
+
     private static string GetSafeInvoiceNo(Invoice invoice)
         => string.IsNullOrWhiteSpace(invoice.InvoiceNumber) ? invoice.Id.ToString("N") : invoice.InvoiceNumber;
 
@@ -674,6 +725,89 @@ public sealed class InvoicesController(ErpDbContext dbContext) : ControllerBase
 
         var normalized = value.Trim();
         return normalized.Length <= 20 ? normalized : normalized[..20];
+    }
+
+    private static string BuildPreviewHtml(Invoice invoice, IReadOnlyList<InvoiceItem> items)
+    {
+        static string Esc(string? value) => System.Net.WebUtility.HtmlEncode(value ?? string.Empty);
+
+        var rows = string.Join(string.Empty, items.Select((item, i) =>
+            $"<tr><td>{i + 1}</td><td>{Esc(item.ProductName)}</td><td>{item.Quantity:N2}</td><td>{Esc(item.Unit)}</td><td>{item.UnitPrice:N2}</td><td>{item.TaxRate:N2}</td><td>{item.LineTotal:N2}</td></tr>"));
+
+        var title = invoice.InvoiceType == InvoiceType.EFatura ? "E-FATURA" : "E-ARSIV FATURA";
+        var kind = invoice.InvoiceCategory switch
+        {
+            InvoiceCategory.Satis => "SATIS",
+            InvoiceCategory.Alis => "ALIS",
+            InvoiceCategory.Iade => "IADE",
+            _ => "DIGER"
+        };
+
+        return $$"""
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{Esc(invoice.InvoiceNumber)}} - {{title}}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; color:#222; }
+    .head { display:flex; justify-content:space-between; margin-bottom:16px; }
+    .box { border:1px solid #ccc; padding:12px; border-radius:8px; margin-bottom:12px; }
+    h1 { margin:0; font-size:20px; }
+    .muted { color:#666; font-size:12px; }
+    table { width:100%; border-collapse:collapse; margin-top:8px; }
+    th, td { border:1px solid #ddd; padding:8px; font-size:12px; text-align:left; }
+    th { background:#f6f6f6; }
+    .right { text-align:right; }
+  </style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>{{title}}</h1>
+      <div class="muted">Bu onizleme dokumani resmi GIB ciktisi degildir.</div>
+    </div>
+    <div class="right">
+      <div><b>Fatura No:</b> {{Esc(string.IsNullOrWhiteSpace(invoice.InvoiceNumber) ? "-" : invoice.InvoiceNumber)}}</div>
+      <div><b>Tur:</b> {{kind}}</div>
+      <div><b>Tarih:</b> {{invoice.IssueDateUtc:dd.MM.yyyy}}</div>
+      <div><b>Durum:</b> {{Esc(invoice.Status.ToString())}}</div>
+    </div>
+  </div>
+
+  <div class="box">
+    <div><b>Cari:</b> {{Esc(invoice.CariAccountName)}}</div>
+    <div><b>VKN:</b> {{Esc(invoice.TaxNumber)}}</div>
+    <div><b>Para Birimi:</b> {{Esc(invoice.Currency)}}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Urun</th>
+        <th>Miktar</th>
+        <th>Birim</th>
+        <th>Birim Fiyat</th>
+        <th>KDV %</th>
+        <th>Tutar</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{rows}}
+    </tbody>
+  </table>
+
+  <div class="box right">
+    <div><b>Ara Toplam:</b> {{invoice.Subtotal:N2}}</div>
+    <div><b>KDV:</b> {{invoice.TaxTotal:N2}}</div>
+    <div><b>Indirim:</b> {{invoice.DiscountTotal:N2}}</div>
+    <div><b>Genel Toplam:</b> {{invoice.GrandTotal:N2}} {{Esc(invoice.Currency)}}</div>
+  </div>
+</body>
+</html>
+""";
     }
 
     private static InvoiceDto MapInvoice(Invoice invoice)

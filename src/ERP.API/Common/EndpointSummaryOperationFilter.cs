@@ -227,6 +227,16 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "E-Arsiv tipindeki faturalarin liste ekranini getirir.";
         }
 
+        if (p.Contains("/api/invoices/") && p.Contains("/detail"))
+        {
+            return "Fatura baslik bilgisi ile urun kalemlerini tek response icinde dondurur.";
+        }
+
+        if (p.Contains("/api/invoices/") && p.Contains("/preview-html"))
+        {
+            return "Faturanin yazdirilabilir HTML onizlemesini dondurur.";
+        }
+
         if (p.Contains("/reports/finance/profitability"))
         {
             return "Karlilik raporlarini urun/musteri/sube bazinda getirir.";

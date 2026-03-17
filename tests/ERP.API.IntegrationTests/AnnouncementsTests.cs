@@ -16,7 +16,7 @@ public sealed class AnnouncementsTests
         using var tenantClient = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
         var adminToken = await LoginAsync(adminClient, "platform.admin", "Test123!");
-        var tenantToken = await LoginAsync(tenantClient, "test.admin", "Test123!");
+        var tenantToken = await LoginAsync(tenantClient, "demo", "Test123!");
 
         adminClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
         tenantClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tenantToken);
