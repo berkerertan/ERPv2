@@ -74,6 +74,16 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Admin paneli icin sistem audit log kayitlarini listeler veya detayini verir.";
         }
 
+        if (p.Contains("/api/activity-logs/me/summary"))
+        {
+            return "Giris yapan kullanicinin kendi islem gecmisi ozet metriklerini getirir.";
+        }
+
+        if (p.Contains("/api/activity-logs/me"))
+        {
+            return "Giris yapan kullanicinin kendi islem gecmisi kayitlarini listeler.";
+        }
+
         if (p.Contains("/suggest"))
         {
             return "Arama kutusu icin hizli onerileri listeler.";
