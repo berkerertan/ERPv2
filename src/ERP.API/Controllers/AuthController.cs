@@ -12,6 +12,7 @@ using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 
 namespace ERP.API.Controllers;
@@ -22,6 +23,7 @@ public sealed class AuthController(
     IMediator mediator,
     ISubscriptionPlanService subscriptionPlanService,
     IJwtTokenService jwtTokenService,
+    IPasswordHasher passwordHasher,
     ErpDbContext dbContext) : ControllerBase
 {
     [AllowAnonymous]
@@ -183,6 +185,146 @@ public sealed class AuthController(
             planConfig?.DisplayName,
             tenant?.SubscriptionStatus.ToString(),
             features));
+    }
+
+    [RequirePolicy("TierUserOrAdmin")]
+    [HttpPut("me")]
+    [ProducesResponseType(typeof(CurrentUserDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<CurrentUserDto>> UpdateMe(
+        [FromBody] UpdateCurrentUserProfileRequest request,
+        CancellationToken cancellationToken)
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(sub, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var normalizedUserName = (request.UserName ?? string.Empty).Trim();
+        var normalizedEmail = (request.Email ?? string.Empty).Trim();
+
+        if (normalizedUserName.Length is < 3 or > 50)
+        {
+            return BadRequest("UserName must be between 3 and 50 characters.");
+        }
+
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return BadRequest("Email is required.");
+        }
+
+        if (normalizedEmail.Length > 100)
+        {
+            return BadRequest("Email cannot exceed 100 characters.");
+        }
+
+        if (!new EmailAddressAttribute().IsValid(normalizedEmail))
+        {
+            return BadRequest("Email format is invalid.");
+        }
+
+        var duplicateUserNameExists = await dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(x => x.Id != userId && x.UserName.ToLower() == normalizedUserName.ToLower(), cancellationToken);
+
+        if (duplicateUserNameExists)
+        {
+            return Conflict("Username already exists.");
+        }
+
+        var duplicateEmailExists = await dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(x => x.Id != userId && x.Email.ToLower() == normalizedEmail.ToLower(), cancellationToken);
+
+        if (duplicateEmailExists)
+        {
+            return Conflict("Email already exists.");
+        }
+
+        user.UserName = normalizedUserName;
+        user.Email = normalizedEmail;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var tenant = user.TenantAccountId.HasValue
+            ? await dbContext.TenantAccounts.AsNoTracking().FirstOrDefaultAsync(x => x.Id == user.TenantAccountId.Value, cancellationToken)
+            : null;
+
+        var planConfig = tenant is null
+            ? null
+            : await subscriptionPlanService.GetPlanConfigAsync(tenant.Plan, cancellationToken);
+
+        var features = planConfig?.Features ?? [];
+        return Ok(new CurrentUserDto(
+            user.Id,
+            user.UserName,
+            user.Email,
+            user.Role,
+            tenant?.Id,
+            tenant?.Name,
+            tenant?.Code,
+            string.Equals(user.Role, AppRoles.Admin, StringComparison.OrdinalIgnoreCase) && tenant is null,
+            planConfig?.DisplayName,
+            tenant?.SubscriptionStatus.ToString(),
+            features));
+    }
+
+    [RequirePolicy("TierUserOrAdmin")]
+    [HttpPut("me/password")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> ChangeMyPassword(
+        [FromBody] ChangeCurrentUserPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!Guid.TryParse(sub, out var userId))
+        {
+            return Unauthorized();
+        }
+
+        var user = await dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId, cancellationToken);
+        if (user is null)
+        {
+            return NotFound();
+        }
+
+        var currentPassword = (request.CurrentPassword ?? string.Empty).Trim();
+        var newPassword = (request.NewPassword ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(currentPassword) || string.IsNullOrWhiteSpace(newPassword))
+        {
+            return BadRequest("CurrentPassword and NewPassword are required.");
+        }
+
+        if (newPassword.Length < 6)
+        {
+            return BadRequest("NewPassword must be at least 6 characters.");
+        }
+
+        if (!passwordHasher.Verify(currentPassword, user.PasswordHash))
+        {
+            return BadRequest("Current password is incorrect.");
+        }
+
+        if (passwordHasher.Verify(newPassword, user.PasswordHash))
+        {
+            return BadRequest("NewPassword must be different from current password.");
+        }
+
+        user.PasswordHash = passwordHasher.Hash(newPassword);
+        user.RefreshToken = null;
+        user.RefreshTokenExpiresAtUtc = null;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return NoContent();
     }
 
     [RequirePolicy("TierUserOrAdmin")]

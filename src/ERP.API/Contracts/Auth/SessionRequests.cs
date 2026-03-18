@@ -22,3 +22,15 @@ public sealed class LogoutRequest
 {
     public string? RefreshToken { get; init; }
 }
+
+public sealed class UpdateCurrentUserProfileRequest
+{
+    public string UserName { get; init; } = string.Empty;
+    public string Email { get; init; } = string.Empty;
+}
+
+public sealed class ChangeCurrentUserPasswordRequest
+{
+    public string CurrentPassword { get; init; } = string.Empty;
+    public string NewPassword { get; init; } = string.Empty;
+}

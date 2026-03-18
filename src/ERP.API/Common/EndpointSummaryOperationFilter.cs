@@ -54,9 +54,19 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Refresh token ile yeni access token uretir.";
         }
 
-        if (p == "/api/auth/me")
+        if (p == "/api/auth/me" && method == "GET")
         {
             return "Giris yapan kullanicinin aktif oturum bilgilerini getirir.";
+        }
+
+        if (p == "/api/auth/me" && method == "PUT")
+        {
+            return "Giris yapan kullanicinin profil bilgilerini gunceller.";
+        }
+
+        if (p == "/api/auth/me/password" && method == "PUT")
+        {
+            return "Giris yapan kullanicinin sifresini degistirir.";
         }
 
         if (p == "/api/auth/logout")
