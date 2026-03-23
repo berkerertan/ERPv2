@@ -84,6 +84,21 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Admin paneli icin sistem audit log kayitlarini listeler veya detayini verir.";
         }
 
+        if (p.Contains("/platform-admin/system-health/overview"))
+        {
+            return "Admin paneli icin API durumu, uptime, veritabani erisimi ve son trafik ozetini getirir.";
+        }
+
+        if (p.Contains("/platform-admin/system-health/dependencies"))
+        {
+            return "Admin paneli icin veritabani ve cekirdek servis bagimliliklarinin durumunu getirir.";
+        }
+
+        if (p.Contains("/platform-admin/system-health/timeline"))
+        {
+            return "Admin paneli icin istek ve hata yogunlugunu zaman kovalarina ayirarak getirir.";
+        }
+
         if (p.Contains("/api/activity-logs/me/summary"))
         {
             return "Giris yapan kullanicinin kendi islem gecmisi ozet metriklerini getirir.";

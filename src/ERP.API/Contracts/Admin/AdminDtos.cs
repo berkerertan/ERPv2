@@ -83,6 +83,42 @@ public sealed record AdminRevenueSummaryDto(
     decimal TotalMonthlyRevenue,
     IReadOnlyList<AdminRevenuePointDto> Breakdown);
 
+public sealed record AdminSystemHealthOverviewDto(
+    string Status,
+    DateTime CurrentUtc,
+    DateTime StartedAtUtc,
+    double UptimeSeconds,
+    string Environment,
+    string Version,
+    bool AuthorizationEnforced,
+    bool DatabaseReachable,
+    int RequestsLastHour,
+    int ErrorsLastHour,
+    double ErrorRateLastHour,
+    double AverageDurationMsLastHour,
+    int ActiveUsersToday,
+    int ActiveTenantsToday,
+    DateTime? LastRequestAtUtc,
+    DateTime? LastErrorAtUtc);
+
+public sealed record AdminSystemDependencyStatusDto(
+    string Name,
+    string Status,
+    long ResponseTimeMs,
+    string? Message,
+    DateTime CheckedAtUtc);
+
+public sealed record AdminSystemHealthTimelinePointDto(
+    DateTime BucketStartUtc,
+    int RequestCount,
+    int ErrorCount,
+    double AverageDurationMs);
+
+public sealed record AdminSystemHealthTimelineDto(
+    int RangeMinutes,
+    int BucketMinutes,
+    IReadOnlyList<AdminSystemHealthTimelinePointDto> Points);
+
 public sealed class UpdateTenantSubscriptionRequest
 {
     public SubscriptionPlan Plan { get; init; }

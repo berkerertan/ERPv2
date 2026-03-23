@@ -8,6 +8,9 @@ using ERP.Domain.Enums;
 using ERP.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using System.Diagnostics;
+using System.Reflection;
 
 namespace ERP.API.Controllers;
 
@@ -16,7 +19,9 @@ namespace ERP.API.Controllers;
 [RequirePlatformAdmin]
 public sealed class PlatformAdminController(
     ErpDbContext dbContext,
-    ISubscriptionPlanService subscriptionPlanService) : ControllerBase
+    ISubscriptionPlanService subscriptionPlanService,
+    IHostEnvironment hostEnvironment,
+    IOptions<SecurityOptions> securityOptions) : ControllerBase
 {
     [HttpGet("dashboard/overview")]
     [ProducesResponseType(typeof(AdminOverviewDto), StatusCodes.Status200OK)]
@@ -440,6 +445,144 @@ public sealed class PlatformAdminController(
             breakdown));
     }
 
+    [HttpGet("system-health/overview")]
+    [ProducesResponseType(typeof(AdminSystemHealthOverviewDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AdminSystemHealthOverviewDto>> GetSystemHealthOverview(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var oneHourAgo = now.AddHours(-1);
+        var todayStart = now.Date;
+
+        var dbCheckStarted = Stopwatch.StartNew();
+        var databaseReachable = await dbContext.Database.CanConnectAsync(cancellationToken);
+        dbCheckStarted.Stop();
+
+        var lastHourLogs = await dbContext.SystemActivityLogs
+            .AsNoTracking()
+            .Where(x => x.OccurredAtUtc >= oneHourAgo)
+            .ToListAsync(cancellationToken);
+
+        var todayLogs = await dbContext.SystemActivityLogs
+            .AsNoTracking()
+            .Where(x => x.OccurredAtUtc >= todayStart)
+            .ToListAsync(cancellationToken);
+
+        var requestsLastHour = lastHourLogs.Count;
+        var errorsLastHour = lastHourLogs.Count(x => x.StatusCode >= 400);
+        var errorRateLastHour = requestsLastHour == 0
+            ? 0d
+            : Math.Round((double)errorsLastHour / requestsLastHour * 100d, 2);
+
+        var averageDurationMs = requestsLastHour == 0
+            ? 0d
+            : Math.Round(lastHourLogs.Average(x => x.DurationMs), 2);
+
+        var status = BuildSystemHealthStatus(databaseReachable, errorRateLastHour);
+        var processStartUtc = Process.GetCurrentProcess().StartTime.ToUniversalTime();
+        var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "unknown";
+
+        var response = new AdminSystemHealthOverviewDto(
+            status,
+            now,
+            processStartUtc,
+            Math.Round((now - processStartUtc).TotalSeconds, 0),
+            hostEnvironment.EnvironmentName,
+            version,
+            securityOptions.Value.EnforceAuthorization,
+            databaseReachable,
+            requestsLastHour,
+            errorsLastHour,
+            errorRateLastHour,
+            averageDurationMs,
+            todayLogs.Where(x => x.UserId.HasValue).Select(x => x.UserId!.Value).Distinct().Count(),
+            todayLogs.Where(x => x.TenantAccountId.HasValue).Select(x => x.TenantAccountId!.Value).Distinct().Count(),
+            todayLogs.OrderByDescending(x => x.OccurredAtUtc).Select(x => (DateTime?)x.OccurredAtUtc).FirstOrDefault(),
+            todayLogs.Where(x => x.StatusCode >= 400).OrderByDescending(x => x.OccurredAtUtc).Select(x => (DateTime?)x.OccurredAtUtc).FirstOrDefault());
+
+        return Ok(response);
+    }
+
+    [HttpGet("system-health/dependencies")]
+    [ProducesResponseType(typeof(IReadOnlyList<AdminSystemDependencyStatusDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<AdminSystemDependencyStatusDto>>> GetSystemHealthDependencies(CancellationToken cancellationToken)
+    {
+        var now = DateTime.UtcNow;
+        var checks = new List<AdminSystemDependencyStatusDto>();
+
+        var databaseWatch = Stopwatch.StartNew();
+        var databaseReachable = await dbContext.Database.CanConnectAsync(cancellationToken);
+        databaseWatch.Stop();
+
+        checks.Add(new AdminSystemDependencyStatusDto(
+            "database",
+            databaseReachable ? "Healthy" : "Unhealthy",
+            databaseWatch.ElapsedMilliseconds,
+            databaseReachable ? "SQL connection established." : "SQL connection failed.",
+            now));
+
+        checks.Add(new AdminSystemDependencyStatusDto(
+            "authorization",
+            securityOptions.Value.EnforceAuthorization ? "Healthy" : "Degraded",
+            0,
+            securityOptions.Value.EnforceAuthorization
+                ? "Authorization enforcement is active."
+                : "Authorization enforcement is disabled.",
+            now));
+
+        checks.Add(new AdminSystemDependencyStatusDto(
+            "api",
+            "Healthy",
+            0,
+            "API process is responding to the admin health endpoint.",
+            now));
+
+        return Ok(checks);
+    }
+
+    [HttpGet("system-health/timeline")]
+    [ProducesResponseType(typeof(AdminSystemHealthTimelineDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<AdminSystemHealthTimelineDto>> GetSystemHealthTimeline(
+        [FromQuery] int minutes = 60,
+        [FromQuery] int bucketMinutes = 5,
+        CancellationToken cancellationToken = default)
+    {
+        var safeMinutes = Math.Clamp(minutes, 15, 24 * 60);
+        var safeBucketMinutes = Math.Clamp(bucketMinutes, 1, 60);
+        var now = DateTime.UtcNow;
+        var rangeStart = now.AddMinutes(-safeMinutes);
+
+        var logs = await dbContext.SystemActivityLogs
+            .AsNoTracking()
+            .Where(x => x.OccurredAtUtc >= rangeStart)
+            .OrderBy(x => x.OccurredAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var buckets = new List<AdminSystemHealthTimelinePointDto>();
+        var bucketStart = TruncateToBucket(rangeStart, safeBucketMinutes);
+        var rangeEnd = now;
+
+        while (bucketStart <= rangeEnd)
+        {
+            var bucketEnd = bucketStart.AddMinutes(safeBucketMinutes);
+            var bucketLogs = logs
+                .Where(x => x.OccurredAtUtc >= bucketStart && x.OccurredAtUtc < bucketEnd)
+                .ToList();
+
+            buckets.Add(new AdminSystemHealthTimelinePointDto(
+                bucketStart,
+                bucketLogs.Count,
+                bucketLogs.Count(x => x.StatusCode >= 400),
+                bucketLogs.Count == 0 ? 0d : Math.Round(bucketLogs.Average(x => x.DurationMs), 2)));
+
+            bucketStart = bucketEnd;
+        }
+
+        return Ok(new AdminSystemHealthTimelineDto(
+            safeMinutes,
+            safeBucketMinutes,
+            buckets));
+    }
+
     private IQueryable<SystemActivityLog> BuildAuditLogQuery(
         string? q,
         Guid? tenantId,
@@ -521,6 +664,27 @@ public sealed class PlatformAdminController(
         }
 
         return string.Join(',', normalized);
+    }
+
+    private static string BuildSystemHealthStatus(bool databaseReachable, double errorRateLastHour)
+    {
+        if (!databaseReachable)
+        {
+            return "Unhealthy";
+        }
+
+        if (errorRateLastHour >= 10d)
+        {
+            return "Degraded";
+        }
+
+        return "Healthy";
+    }
+
+    private static DateTime TruncateToBucket(DateTime value, int bucketMinutes)
+    {
+        var totalMinutes = (value.Minute / bucketMinutes) * bucketMinutes;
+        return new DateTime(value.Year, value.Month, value.Day, value.Hour, totalMinutes, 0, DateTimeKind.Utc);
     }
 }
 
