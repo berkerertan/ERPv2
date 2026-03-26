@@ -17,9 +17,11 @@ using ERP.Domain.Constants;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
 using ERP.Infrastructure.Persistence;
+using ClosedXML.Excel;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Globalization;
 using System.Text;
 
 namespace ERP.API.Controllers;
@@ -169,6 +171,67 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
     {
         var response = await mediator.Send(new GetCariDebtItemsQuery(cariAccountId), cancellationToken);
         return Ok(response);
+    }
+
+    [HttpGet("{cariAccountId:guid}/debt-items/export-excel")]
+    [Produces("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportDebtItemsExcel(
+        Guid cariAccountId,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        CancellationToken cancellationToken)
+    {
+        var account = await dbContext.CariAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == cariAccountId, cancellationToken);
+
+        if (account is null)
+        {
+            return NotFound("Cari account not found.");
+        }
+
+        var items = await BuildDebtItemExportQuery(cariAccountId, fromDate, toDate)
+            .OrderBy(x => x.TransactionDate)
+            .ThenBy(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var fileBytes = BuildDebtItemsExcel(account, items);
+        var fileName = BuildSafeFileName($"cari-{account.Code}-{account.Name}-debt-items-{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+
+        return File(
+            fileBytes,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
+    }
+
+    [HttpGet("{cariAccountId:guid}/debt-items/export-pdf")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> ExportDebtItemsPdf(
+        Guid cariAccountId,
+        [FromQuery] DateTime? fromDate,
+        [FromQuery] DateTime? toDate,
+        CancellationToken cancellationToken)
+    {
+        var account = await dbContext.CariAccounts
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == cariAccountId, cancellationToken);
+
+        if (account is null)
+        {
+            return NotFound("Cari account not found.");
+        }
+
+        var items = await BuildDebtItemExportQuery(cariAccountId, fromDate, toDate)
+            .OrderBy(x => x.TransactionDate)
+            .ThenBy(x => x.CreatedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var fileBytes = BuildDebtItemsPdf(account, items);
+        var fileName = BuildSafeFileName($"cari-{account.Code}-{account.Name}-debt-items-{DateTime.UtcNow:yyyyMMddHHmmss}.pdf");
+
+        return File(fileBytes, "application/pdf", fileName);
     }
 
     [HttpGet("{cariAccountId:guid}/debt-items/{debtItemId:guid}")]
@@ -501,6 +564,263 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
         }
 
         return sb.ToString().Trim();
+    }
+
+    private IQueryable<CariDebtItem> BuildDebtItemExportQuery(Guid cariAccountId, DateTime? fromDate, DateTime? toDate)
+    {
+        var query = dbContext.CariDebtItems
+            .AsNoTracking()
+            .Where(x => x.CariAccountId == cariAccountId);
+
+        if (fromDate.HasValue)
+        {
+            var from = fromDate.Value.Date;
+            query = query.Where(x => x.TransactionDate >= from);
+        }
+
+        if (toDate.HasValue)
+        {
+            var toExclusive = toDate.Value.Date.AddDays(1);
+            query = query.Where(x => x.TransactionDate < toExclusive);
+        }
+
+        return query;
+    }
+
+    private static byte[] BuildDebtItemsExcel(CariAccount account, IReadOnlyList<CariDebtItem> items)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add("DebtItems");
+
+        worksheet.Cell(1, 1).Value = "TransactionDate";
+        worksheet.Cell(1, 2).Value = "MaterialDescription";
+        worksheet.Cell(1, 3).Value = "Quantity";
+        worksheet.Cell(1, 4).Value = "ListPrice";
+        worksheet.Cell(1, 5).Value = "SalePrice";
+        worksheet.Cell(1, 6).Value = "TotalAmount";
+        worksheet.Cell(1, 7).Value = "Payment";
+        worksheet.Cell(1, 8).Value = "RemainingBalance";
+
+        var headerRange = worksheet.Range(1, 1, 1, 8);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Fill.BackgroundColor = XLColor.LightGray;
+
+        var row = 2;
+        foreach (var item in items)
+        {
+            worksheet.Cell(row, 1).Value = item.TransactionDate.Date;
+            worksheet.Cell(row, 1).Style.DateFormat.Format = "yyyy-MM-dd";
+            worksheet.Cell(row, 2).Value = item.MaterialDescription;
+            worksheet.Cell(row, 3).Value = item.Quantity;
+            worksheet.Cell(row, 4).Value = item.ListPrice;
+            worksheet.Cell(row, 5).Value = item.SalePrice;
+            worksheet.Cell(row, 6).Value = item.TotalAmount;
+            worksheet.Cell(row, 7).Value = item.Payment;
+            worksheet.Cell(row, 8).Value = item.RemainingBalance;
+
+            worksheet.Cell(row, 3).Style.NumberFormat.Format = "#,##0.###";
+            worksheet.Cell(row, 4).Style.NumberFormat.Format = "#,##0.00";
+            worksheet.Cell(row, 5).Style.NumberFormat.Format = "#,##0.00";
+            worksheet.Cell(row, 6).Style.NumberFormat.Format = "#,##0.00";
+            worksheet.Cell(row, 7).Style.NumberFormat.Format = "#,##0.00";
+            worksheet.Cell(row, 8).Style.NumberFormat.Format = "#,##0.00";
+            row++;
+        }
+
+        worksheet.Columns(1, 8).AdjustToContents();
+        worksheet.Cell(1, 10).Value = $"CariCode: {account.Code}";
+        worksheet.Cell(2, 10).Value = $"CariName: {account.Name}";
+        worksheet.Cell(3, 10).Value = $"ExportedAtUtc: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}";
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private static byte[] BuildDebtItemsPdf(CariAccount account, IReadOnlyList<CariDebtItem> items)
+    {
+        var tr = CultureInfo.GetCultureInfo("tr-TR");
+        var printableLines = new List<string>
+        {
+            $"Cari Debt List - {ToAscii(account.Name)} ({ToAscii(account.Code)})",
+            $"Generated: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC",
+            "Date       Material                                   Qty      List       Sale       Total      Paid       Remain",
+            "---------------------------------------------------------------------------------------------------------------"
+        };
+
+        if (items.Count == 0)
+        {
+            printableLines.Add("No debt items found for selected filters.");
+        }
+        else
+        {
+            foreach (var item in items)
+            {
+                printableLines.Add(
+                    $"{item.TransactionDate:yyyy-MM-dd} " +
+                    $"{TrimForPdf(ToAscii(item.MaterialDescription), 40),-40} " +
+                    $"{item.Quantity.ToString("N3", tr),8} " +
+                    $"{item.ListPrice.ToString("N2", tr),10} " +
+                    $"{item.SalePrice.ToString("N2", tr),10} " +
+                    $"{item.TotalAmount.ToString("N2", tr),10} " +
+                    $"{item.Payment.ToString("N2", tr),10} " +
+                    $"{item.RemainingBalance.ToString("N2", tr),10}");
+            }
+        }
+
+        return BuildPlainTextPdf(printableLines, maxLinesPerPage: 46);
+    }
+
+    private static string TrimForPdf(string? input, int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return string.Empty;
+        }
+
+        var value = input.Trim();
+        return value.Length <= maxLength ? value : $"{value[..Math.Max(0, maxLength - 3)]}...";
+    }
+
+    private static byte[] BuildPlainTextPdf(IReadOnlyList<string> lines, int maxLinesPerPage)
+    {
+        var pages = new List<List<string>>();
+        var current = new List<string>();
+
+        foreach (var line in lines)
+        {
+            current.Add(line);
+            if (current.Count >= maxLinesPerPage)
+            {
+                pages.Add(current);
+                current = new List<string>();
+            }
+        }
+
+        if (current.Count > 0 || pages.Count == 0)
+        {
+            pages.Add(current);
+        }
+
+        var objectContents = new List<byte[]>();
+        var pageObjectNumbers = new List<int>();
+        var contentObjectNumbers = new List<int>();
+
+        var nextObjectNumber = 3;
+        foreach (var _ in pages)
+        {
+            pageObjectNumbers.Add(nextObjectNumber++);
+            contentObjectNumbers.Add(nextObjectNumber++);
+        }
+
+        var fontObjectNumber = nextObjectNumber++;
+        var kids = string.Join(" ", pageObjectNumbers.Select(x => $"{x} 0 R"));
+        var pagesObject = $"<< /Type /Pages /Kids [{kids}] /Count {pages.Count} >>";
+
+        objectContents.Add(Encoding.ASCII.GetBytes("<< /Type /Catalog /Pages 2 0 R >>"));
+        objectContents.Add(Encoding.ASCII.GetBytes(pagesObject));
+
+        for (var i = 0; i < pages.Count; i++)
+        {
+            var pageObject = $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 {fontObjectNumber} 0 R >> >> /Contents {contentObjectNumbers[i]} 0 R >>";
+            objectContents.Add(Encoding.ASCII.GetBytes(pageObject));
+
+            var streamBuilder = new StringBuilder();
+            streamBuilder.AppendLine("BT");
+            streamBuilder.AppendLine("/F1 9 Tf");
+            streamBuilder.AppendLine("11 TL");
+            streamBuilder.AppendLine("40 800 Td");
+
+            foreach (var line in pages[i])
+            {
+                streamBuilder.Append('(').Append(EscapePdfText(ToAscii(line))).AppendLine(") Tj");
+                streamBuilder.AppendLine("T*");
+            }
+
+            streamBuilder.AppendLine("ET");
+
+            var streamText = streamBuilder.ToString();
+            var streamBytes = Encoding.ASCII.GetBytes(streamText);
+            var contentPrefix = Encoding.ASCII.GetBytes($"<< /Length {streamBytes.Length} >>\nstream\n");
+            var contentSuffix = Encoding.ASCII.GetBytes("endstream");
+
+            using var contentStream = new MemoryStream();
+            contentStream.Write(contentPrefix);
+            contentStream.Write(streamBytes);
+            contentStream.Write(contentSuffix);
+            objectContents.Add(contentStream.ToArray());
+        }
+
+        objectContents.Add(Encoding.ASCII.GetBytes("<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"));
+
+        using var pdf = new MemoryStream();
+        var offsets = new List<long> { 0 };
+
+        WriteAscii(pdf, "%PDF-1.4\n");
+
+        for (var i = 0; i < objectContents.Count; i++)
+        {
+            offsets.Add(pdf.Position);
+            WriteAscii(pdf, $"{i + 1} 0 obj\n");
+            pdf.Write(objectContents[i], 0, objectContents[i].Length);
+            WriteAscii(pdf, "\nendobj\n");
+        }
+
+        var xrefOffset = pdf.Position;
+        WriteAscii(pdf, $"xref\n0 {objectContents.Count + 1}\n");
+        WriteAscii(pdf, "0000000000 65535 f \n");
+
+        foreach (var offset in offsets.Skip(1))
+        {
+            WriteAscii(pdf, $"{offset:0000000000} 00000 n \n");
+        }
+
+        WriteAscii(pdf, $"trailer\n<< /Size {objectContents.Count + 1} /Root 1 0 R >>\nstartxref\n{xrefOffset}\n%%EOF");
+        return pdf.ToArray();
+    }
+
+    private static void WriteAscii(Stream stream, string value)
+    {
+        var bytes = Encoding.ASCII.GetBytes(value);
+        stream.Write(bytes, 0, bytes.Length);
+    }
+
+    private static string EscapePdfText(string value)
+    {
+        return value
+            .Replace("\\", "\\\\", StringComparison.Ordinal)
+            .Replace("(", "\\(", StringComparison.Ordinal)
+            .Replace(")", "\\)", StringComparison.Ordinal);
+    }
+
+    private static string ToAscii(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        return value
+            .Replace("İ", "I", StringComparison.Ordinal)
+            .Replace("I", "I", StringComparison.Ordinal)
+            .Replace("ı", "i", StringComparison.Ordinal)
+            .Replace("Ş", "S", StringComparison.Ordinal)
+            .Replace("ş", "s", StringComparison.Ordinal)
+            .Replace("Ğ", "G", StringComparison.Ordinal)
+            .Replace("ğ", "g", StringComparison.Ordinal)
+            .Replace("Ü", "U", StringComparison.Ordinal)
+            .Replace("ü", "u", StringComparison.Ordinal)
+            .Replace("Ö", "O", StringComparison.Ordinal)
+            .Replace("ö", "o", StringComparison.Ordinal)
+            .Replace("Ç", "C", StringComparison.Ordinal)
+            .Replace("ç", "c", StringComparison.Ordinal);
+    }
+
+    private static string BuildSafeFileName(string fileName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(fileName.Select(ch => invalidChars.Contains(ch) ? '_' : ch).ToArray());
+        return sanitized.Replace(' ', '_');
     }
 }
 

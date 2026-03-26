@@ -1,8 +1,12 @@
-﻿using ERP.Application.Abstractions.Imports;
+using ERP.Application.Abstractions.Imports;
+using ERP.Application.Abstractions.Media;
+using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
+using ERP.Infrastructure.Communication;
 using ERP.Infrastructure.Authentication;
 using ERP.Infrastructure.Imports;
+using ERP.Infrastructure.Media;
 using ERP.Infrastructure.Persistence;
 using ERP.Infrastructure.Persistence.Repositories;
 using ERP.Infrastructure.Security;
@@ -18,6 +22,8 @@ public static class DependencyInjection
     {
         services.AddHttpContextAccessor();
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
+        services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
 
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
@@ -44,6 +50,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, Pbkdf2PasswordHasher>();
         services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
+        services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<IMediaStorageService, CloudinaryMediaStorageService>();
 
         return services;
     }

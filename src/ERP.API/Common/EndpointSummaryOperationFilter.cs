@@ -119,6 +119,16 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Birden fazla alici Excel dosyasini yukler; alici adini dosya isminden cikarip borc kalemlerini ice aktarir.";
         }
 
+        if (p.Contains("/api/cari-accounts/") && p.Contains("/debt-items/export-excel"))
+        {
+            return "Secilen cari hesabin borc kalemlerini Excel olarak disa aktarir.";
+        }
+
+        if (p.Contains("/api/cari-accounts/") && p.Contains("/debt-items/export-pdf"))
+        {
+            return "Secilen cari hesabin borc kalemlerini PDF olarak disa aktarir.";
+        }
+
         if (p.Contains("/import-excel"))
         {
             return "Excel dosyasindan toplu veri ice aktarir.";
@@ -139,9 +149,59 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Secili urunler icin toplu stok artisi/azalisi hareketleri olusturur.";
         }
 
+        if (p.Contains("/api/products/") && p.Contains("/image") && method == "POST")
+        {
+            return "Urun gorsel dosyasini cloud depoya yukler ve urunun imageUrl alanini gunceller.";
+        }
+
+        if (p.Contains("/api/products/") && p.Contains("/image") && method == "DELETE")
+        {
+            return "Urunun mevcut gorselini cloud depodan siler ve imageUrl alanini temizler.";
+        }
+
         if (p.Contains("/api/platform-admin/announcements"))
         {
             return "Platform admin duyurulari olusturur, gunceller ve yayin durumunu yonetir.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/templates"))
+        {
+            return "Platform admin e-posta sablonlarini listeler veya gunceller.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/campaigns/preview"))
+        {
+            return "Kampanya hedef kitlesini gonderim yapmadan once tenant ve alici sayisiyla onizler.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/campaigns/") && p.Contains("/queue"))
+        {
+            return "Taslak e-posta kampanyasini alici kuyruguna alir ve zamanlamaya gore isleme hazirlar.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/campaigns/") && p.Contains("/cancel"))
+        {
+            return "Kuyruktaki veya planli kampanyayi iptal eder.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/campaigns/") && p.Contains("/recipients"))
+        {
+            return "Secilen kampanyanin alici listesini ve gonderim durumlarini listeler.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/campaigns"))
+        {
+            return "Kampanya taslaklarini olusturur, gunceller, listeler ve detaylarini getirir.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/send"))
+        {
+            return "Secilen tenantlara sablona gore e-posta gonderir.";
+        }
+
+        if (p.Contains("/api/platform-admin/email/logs"))
+        {
+            return "E-posta gonderim gecmisini ve durumlarini listeler.";
         }
 
         if (p.Contains("/api/announcements"))
@@ -210,6 +270,26 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
         if (p.Contains("/api/accounting/chart-of-accounts"))
         {
             return "Muhasebe hesap plani kayitlarini yonetir.";
+        }
+
+        if (p.Contains("/api/accounting/check-notes/") && p.Contains("/settle"))
+        {
+            return "Cek/senet kaydini tahsilat veya odeme olarak kapatir; finance movement ve kasa/banka hareketi olusturur.";
+        }
+
+        if (p.Contains("/api/accounting/check-notes/") && p.Contains("/status"))
+        {
+            return "Cek/senet durumunu (portfoy, ciro, protesto, iptal) gunceller.";
+        }
+
+        if (p.Contains("/api/accounting/check-notes/due-list"))
+        {
+            return "Vadesi gelen veya yaklasan acik cek/senet kayitlarini listeler.";
+        }
+
+        if (p.Contains("/api/accounting/check-notes"))
+        {
+            return "Cek/senet kayitlari icin CRUD ve filtreli listeleme islemleri sunar.";
         }
 
         if (p.Contains("/api/accounting/journal-entries") && p.Contains("/post"))

@@ -17,6 +17,7 @@ builder.Logging.AddDebug();
 
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
 builder.Services.Configure<TenantResolutionOptions>(builder.Configuration.GetSection(TenantResolutionOptions.SectionName));
+builder.Services.Configure<EmailCampaignOptions>(builder.Configuration.GetSection(EmailCampaignOptions.SectionName));
 
 builder.Services.AddCors(options =>
 {
@@ -55,6 +56,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddHostedService<PlatformEmailCampaignProcessor>();
 
 var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? new JwtOptions();
 if (jwtOptions.Key.Length < 32)

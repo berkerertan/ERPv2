@@ -1,4 +1,4 @@
-﻿using ERP.Domain.Enums;
+using ERP.Domain.Enums;
 
 namespace ERP.API.Contracts.Accounting;
 
@@ -111,6 +111,7 @@ public sealed record CustomerProfitabilityDto(
     decimal Profit,
     decimal MarginPercent);
 
+
 public sealed record BranchProfitabilityDto(
     Guid BranchId,
     string BranchCode,
@@ -119,3 +120,15 @@ public sealed record BranchProfitabilityDto(
     decimal Cost,
     decimal Profit,
     decimal MarginPercent);
+
+public sealed record DashboardSummaryDto(
+    decimal TotalSalesAmount,
+    int TotalOrderCount,
+    int TotalProductCount,
+    int TotalActiveCariCount,
+    decimal TotalBankBalance,
+    decimal TotalCashBalance,
+    decimal OverdueReceivables,
+    int OverdueCheckNoteCount,
+    int PendingQuoteCount);
+

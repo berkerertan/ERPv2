@@ -1,5 +1,7 @@
 using ERP.API.Common;
 using ERP.API.Contracts.Products;
+using ERP.Application.Abstractions.Media;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Features.Products.Commands.CreateProduct;
 using ERP.Application.Features.Products.Commands.DeleteProduct;
 using ERP.Application.Features.Products.Commands.UpdateProduct;
@@ -19,7 +21,11 @@ namespace ERP.API.Controllers;
 [ApiController]
 [Route("api/products")]
 [RequirePolicy("TierUserOrAdmin")]
-public sealed class ProductsController(IMediator mediator, ErpDbContext dbContext) : ControllerBase
+public sealed class ProductsController(
+    IMediator mediator,
+    ErpDbContext dbContext,
+    IMediaStorageService mediaStorageService,
+    IProductRepository productRepository) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<ProductDto>), StatusCodes.Status200OK)]
@@ -44,6 +50,67 @@ public sealed class ProductsController(IMediator mediator, ErpDbContext dbContex
     {
         var response = await mediator.Send(new GetProductSuggestionsQuery(q, limit), cancellationToken);
         return Ok(response);
+    }
+
+    [HttpGet("scan")]
+    [ProducesResponseType(typeof(ProductScanResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ProductScanResponse>> Scan(
+        [FromQuery] string? barcode,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+        {
+            return BadRequest("Barcode is required.");
+        }
+
+        var normalizedBarcode = barcode.Trim();
+        var product = await productRepository.GetByBarcodeAsync(normalizedBarcode, cancellationToken);
+
+        if (product is not null)
+        {
+            return Ok(new ProductScanResponse(
+                normalizedBarcode,
+                true,
+                new ProductScanMatchDto(
+                    product.Id,
+                    product.Code,
+                    product.Name,
+                    product.BarcodeEan13,
+                    product.QrCode,
+                    product.DefaultSalePrice,
+                    product.Unit,
+                    product.ImageUrl,
+                    product.IsActive),
+                null));
+        }
+
+        var numericBarcode = normalizedBarcode.All(char.IsDigit) && normalizedBarcode.Length == 13
+            ? normalizedBarcode
+            : null;
+
+        var qrCode = numericBarcode is null ? normalizedBarcode : null;
+        var codeSuffix = normalizedBarcode.Length > 8
+            ? normalizedBarcode[^8..]
+            : normalizedBarcode;
+
+        var safeSuffix = new string(codeSuffix.Where(char.IsLetterOrDigit).ToArray());
+        var draftCode = string.IsNullOrWhiteSpace(safeSuffix)
+            ? $"PRD-{DateTime.UtcNow:HHmmss}"
+            : $"PRD-{safeSuffix.ToUpperInvariant()}";
+
+        return Ok(new ProductScanResponse(
+            normalizedBarcode,
+            false,
+            null,
+            new ProductScanDraftDto(
+                draftCode,
+                $"Yeni Urun {normalizedBarcode}",
+                "EA",
+                "Genel",
+                numericBarcode,
+                qrCode,
+                0m,
+                1m)));
     }
 
     [HttpGet("{id:guid}")]
@@ -128,6 +195,101 @@ public sealed class ProductsController(IMediator mediator, ErpDbContext dbContex
     public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
     {
         await mediator.Send(new DeleteProductCommand(id), cancellationToken);
+        return NoContent();
+    }
+
+    [HttpPost("{id:guid}/image")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(ProductImageUploadResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ProductImageUploadResponse>> UploadImage(
+        Guid id,
+        [FromForm] ProductImageUploadForm form,
+        [FromQuery] bool deletePrevious = true,
+        CancellationToken cancellationToken = default)
+    {
+        var file = form.File;
+
+        if (!mediaStorageService.IsConfigured)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is not configured.");
+        }
+
+        if (file is null || file.Length <= 0)
+        {
+            return BadRequest("Image file is required.");
+        }
+
+        if (!file.ContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest("Only image files are allowed.");
+        }
+
+        const long maxBytes = 10 * 1024 * 1024;
+        if (file.Length > maxBytes)
+        {
+            return BadRequest("Image file size cannot exceed 10 MB.");
+        }
+
+        var product = await dbContext.Products.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (product is null)
+        {
+            return NotFound("Product not found.");
+        }
+
+        var previousImageUrl = product.ImageUrl;
+
+        await using var stream = file.OpenReadStream();
+        var upload = await mediaStorageService.UploadProductImageAsync(stream, file.FileName, file.ContentType, cancellationToken);
+
+        product.ImageUrl = upload.Url;
+        product.UpdatedAtUtc = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        if (deletePrevious)
+        {
+            var previousPublicId = mediaStorageService.TryExtractPublicIdFromUrl(previousImageUrl);
+            if (!string.IsNullOrWhiteSpace(previousPublicId))
+            {
+                await mediaStorageService.DeleteByPublicIdAsync(previousPublicId, cancellationToken);
+            }
+        }
+
+        return Ok(new ProductImageUploadResponse(
+            product.Id,
+            upload.Url,
+            upload.PublicId,
+            upload.Format,
+            upload.Width,
+            upload.Height,
+            upload.Bytes));
+    }
+
+    [HttpDelete("{id:guid}/image")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> RemoveImage(Guid id, CancellationToken cancellationToken)
+    {
+        var product = await dbContext.Products.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
+        if (product is null)
+        {
+            return NotFound("Product not found.");
+        }
+
+        var existingImageUrl = product.ImageUrl;
+        if (string.IsNullOrWhiteSpace(existingImageUrl))
+        {
+            return NoContent();
+        }
+
+        var publicId = mediaStorageService.TryExtractPublicIdFromUrl(existingImageUrl);
+        if (!string.IsNullOrWhiteSpace(publicId))
+        {
+            await mediaStorageService.DeleteByPublicIdAsync(publicId, cancellationToken);
+        }
+
+        product.ImageUrl = null;
+        product.UpdatedAtUtc = DateTime.UtcNow;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
         return NoContent();
     }
 

@@ -47,6 +47,8 @@ public sealed class LoginCommandHandler(
             tenant?.Name,
             tenant?.Plan,
             tenant?.SubscriptionStatus,
-            planConfig?.Features ?? []);
+            planConfig?.Features ?? [],
+            token.ExpiresAtUtc,
+            user.RefreshTokenExpiresAtUtc);
     }
 }

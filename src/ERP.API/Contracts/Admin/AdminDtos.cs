@@ -83,6 +83,33 @@ public sealed record AdminRevenueSummaryDto(
     decimal TotalMonthlyRevenue,
     IReadOnlyList<AdminRevenuePointDto> Breakdown);
 
+public sealed record AdminUserListItemDto(
+    Guid UserId,
+    string UserName,
+    string? Email,
+    string Role,
+    Guid? TenantId,
+    string? TenantName,
+    string? TenantCode,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? LastLoginAtUtc);
+
+public sealed record AdminUserDetailDto(
+    Guid UserId,
+    string UserName,
+    string? Email,
+    string Role,
+    Guid? TenantId,
+    string? TenantName,
+    string? TenantCode,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? LastLoginAtUtc,
+    SubscriptionPlan? SubscriptionPlan,
+    SubscriptionStatus? SubscriptionStatus,
+    IReadOnlyList<AdminActivityLogDto> RecentActivities);
+
 public sealed record AdminSystemHealthOverviewDto(
     string Status,
     DateTime CurrentUtc,
@@ -118,6 +145,149 @@ public sealed record AdminSystemHealthTimelineDto(
     int RangeMinutes,
     int BucketMinutes,
     IReadOnlyList<AdminSystemHealthTimelinePointDto> Points);
+
+public sealed record AdminEmailTemplateDto(
+    Guid Id,
+    string Key,
+    string Name,
+    string SubjectTemplate,
+    string BodyTemplate,
+    string? Description,
+    bool IsActive,
+    DateTime CreatedAtUtc,
+    DateTime? UpdatedAtUtc);
+
+public sealed class UpsertAdminEmailTemplateRequest
+{
+    public string Name { get; init; } = string.Empty;
+    public string SubjectTemplate { get; init; } = string.Empty;
+    public string BodyTemplate { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public bool IsActive { get; init; } = true;
+}
+
+public sealed class SendTenantEmailRequest
+{
+    public string TemplateKey { get; init; } = "welcome";
+    public List<Guid> TenantIds { get; init; } = [];
+    public bool SendToAllActiveTenants { get; init; }
+    public bool SendToAllTenantUsers { get; init; }
+    public string? SubjectOverride { get; init; }
+    public string? BodyOverride { get; init; }
+    public Dictionary<string, string> Variables { get; init; } = [];
+}
+
+public sealed record AdminTenantEmailDispatchItemDto(
+    Guid? TenantId,
+    string? TenantCode,
+    string? TenantName,
+    string RecipientEmail,
+    string Status,
+    string Message);
+
+public sealed record AdminTenantEmailDispatchResultDto(
+    int RequestedTenantCount,
+    int ProcessedTenantCount,
+    int SentCount,
+    int FailedCount,
+    int SkippedCount,
+    IReadOnlyList<AdminTenantEmailDispatchItemDto> Items);
+
+public sealed record AdminEmailDispatchLogDto(
+    Guid Id,
+    Guid? CampaignId,
+    Guid? TenantId,
+    string? TenantCode,
+    string? TenantName,
+    string TemplateKey,
+    string RecipientEmail,
+    string Subject,
+    string Status,
+    string? ProviderMessage,
+    DateTime AttemptedAtUtc,
+    DateTime? SentAtUtc,
+    Guid? TriggeredByUserId,
+    string? TriggeredByUserName);
+
+public sealed class AdminEmailCampaignDraftRequest
+{
+    public string Name { get; init; } = string.Empty;
+    public string? Description { get; init; }
+    public string TemplateKey { get; init; } = "welcome";
+    public List<Guid> TenantIds { get; init; } = [];
+    public bool SendToAllActiveTenants { get; init; }
+    public bool SendToAllTenantUsers { get; init; }
+    public string? SubjectOverride { get; init; }
+    public string? BodyOverride { get; init; }
+    public Dictionary<string, string> Variables { get; init; } = [];
+    public DateTime? ScheduledAtUtc { get; init; }
+    public bool IsHtml { get; init; } = true;
+}
+
+public sealed class AdminEmailCampaignPreviewRequest
+{
+    public string TemplateKey { get; init; } = "welcome";
+    public List<Guid> TenantIds { get; init; } = [];
+    public bool SendToAllActiveTenants { get; init; }
+    public bool SendToAllTenantUsers { get; init; }
+}
+
+public sealed record AdminEmailCampaignAudienceRecipientDto(
+    Guid? TenantId,
+    string? TenantCode,
+    string? TenantName,
+    string RecipientEmail);
+
+public sealed record AdminEmailCampaignAudiencePreviewDto(
+    int TenantCount,
+    int RecipientCount,
+    IReadOnlyList<AdminEmailCampaignAudienceRecipientDto> RecipientsSample);
+
+public sealed record AdminEmailCampaignDto(
+    Guid Id,
+    string Name,
+    string? Description,
+    string TemplateKey,
+    string SubjectTemplate,
+    string BodyTemplate,
+    bool IsHtml,
+    bool SendToAllActiveTenants,
+    bool SendToAllTenantUsers,
+    IReadOnlyList<Guid> TenantIds,
+    Dictionary<string, string> Variables,
+    PlatformEmailCampaignStatus Status,
+    DateTime? ScheduledAtUtc,
+    DateTime? QueuedAtUtc,
+    DateTime? StartedAtUtc,
+    DateTime? CompletedAtUtc,
+    DateTime? CancelledAtUtc,
+    int TotalRecipients,
+    int SentCount,
+    int FailedCount,
+    int SkippedCount,
+    string? LastError,
+    DateTime CreatedAtUtc,
+    DateTime? UpdatedAtUtc);
+
+public sealed record AdminEmailCampaignQueueResultDto(
+    Guid CampaignId,
+    PlatformEmailCampaignStatus Status,
+    int TotalRecipients,
+    DateTime? ScheduledAtUtc);
+
+public sealed record AdminEmailCampaignRecipientDto(
+    Guid Id,
+    Guid CampaignId,
+    Guid? TenantId,
+    string? TenantCode,
+    string? TenantName,
+    string RecipientEmail,
+    PlatformEmailRecipientStatus Status,
+    int AttemptCount,
+    DateTime? NextAttemptAtUtc,
+    DateTime? LastAttemptedAtUtc,
+    DateTime? SentAtUtc,
+    string? ProviderMessage);
 
 public sealed class UpdateTenantSubscriptionRequest
 {

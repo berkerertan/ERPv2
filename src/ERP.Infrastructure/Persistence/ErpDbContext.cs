@@ -17,6 +17,10 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<LandingPageContent> LandingPageContents => Set<LandingPageContent>();
     public DbSet<Announcement> Announcements => Set<Announcement>();
     public DbSet<SystemActivityLog> SystemActivityLogs => Set<SystemActivityLog>();
+    public DbSet<PlatformEmailTemplate> PlatformEmailTemplates => Set<PlatformEmailTemplate>();
+    public DbSet<PlatformEmailCampaign> PlatformEmailCampaigns => Set<PlatformEmailCampaign>();
+    public DbSet<PlatformEmailCampaignRecipient> PlatformEmailCampaignRecipients => Set<PlatformEmailCampaignRecipient>();
+    public DbSet<PlatformEmailDispatchLog> PlatformEmailDispatchLogs => Set<PlatformEmailDispatchLog>();
 
     public DbSet<ChartOfAccount> ChartOfAccounts => Set<ChartOfAccount>();
     public DbSet<JournalEntry> JournalEntries => Set<JournalEntry>();
@@ -38,6 +42,10 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<FinanceMovement> FinanceMovements => Set<FinanceMovement>();
+    public DbSet<CheckNote> CheckNotes => Set<CheckNote>();
+    public DbSet<Quote> Quotes => Set<Quote>();
+    public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
+    public DbSet<UserSession> UserSessions => Set<UserSession>();
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
 
@@ -54,10 +62,28 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.Property(x => x.UserName).HasMaxLength(50).IsRequired();
             builder.Property(x => x.Email).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Role).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.TwoFactorSecretKey).HasMaxLength(200);
             builder.HasOne<TenantAccount>()
                 .WithMany()
                 .HasForeignKey(x => x.TenantAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<UserSession>(builder =>
+        {
+            builder.ToTable("UserSessions");
+            builder.HasIndex(x => x.UserId);
+            builder.HasIndex(x => x.RefreshToken).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.Property(x => x.DeviceName).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.IpAddress).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.Location).HasMaxLength(200);
+            builder.Property(x => x.RefreshToken).HasMaxLength(500).IsRequired();
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             ConfigureSoftDelete(builder);
         });
@@ -124,6 +150,95 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasOne<AppUser>()
                 .WithMany()
                 .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<PlatformEmailTemplate>(builder =>
+        {
+            builder.ToTable("PlatformEmailTemplates");
+            builder.HasIndex(x => x.Key).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.Property(x => x.Key).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            builder.Property(x => x.SubjectTemplate).HasMaxLength(300).IsRequired();
+            builder.Property(x => x.BodyTemplate).HasMaxLength(8000).IsRequired();
+            builder.Property(x => x.Description).HasMaxLength(500);
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<PlatformEmailDispatchLog>(builder =>
+        {
+            builder.ToTable("PlatformEmailDispatchLogs");
+            builder.HasIndex(x => x.CampaignId);
+            builder.HasIndex(x => x.AttemptedAtUtc);
+            builder.HasIndex(x => x.TenantAccountId);
+            builder.HasIndex(x => x.TemplateKey);
+            builder.HasIndex(x => x.Status);
+            builder.Property(x => x.CampaignId);
+            builder.Property(x => x.TenantCode).HasMaxLength(40);
+            builder.Property(x => x.TenantName).HasMaxLength(150);
+            builder.Property(x => x.TemplateKey).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.RecipientEmail).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Subject).HasMaxLength(300).IsRequired();
+            builder.Property(x => x.Body).HasMaxLength(8000).IsRequired();
+            builder.Property(x => x.Status).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.ProviderMessage).HasMaxLength(500);
+            builder.Property(x => x.TriggeredByUserName).HasMaxLength(100);
+            builder.HasOne<TenantAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.TenantAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.TriggeredByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<PlatformEmailCampaign>(builder =>
+        {
+            builder.ToTable("PlatformEmailCampaigns");
+            builder.HasIndex(x => x.CreatedAtUtc);
+            builder.HasIndex(x => x.Status);
+            builder.HasIndex(x => x.ScheduledAtUtc);
+            builder.Property(x => x.Name).HasMaxLength(150).IsRequired();
+            builder.Property(x => x.Description).HasMaxLength(500);
+            builder.Property(x => x.TemplateKey).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.SubjectTemplate).HasMaxLength(300).IsRequired();
+            builder.Property(x => x.BodyTemplate).HasMaxLength(8000).IsRequired();
+            builder.Property(x => x.TenantIdsJson).HasMaxLength(8000).IsRequired();
+            builder.Property(x => x.VariablesJson).HasMaxLength(8000).IsRequired();
+            builder.Property(x => x.LastError).HasMaxLength(500);
+            builder.Property(x => x.CreatedByUserName).HasMaxLength(100);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.CreatedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            ConfigureSoftDelete(builder);
+        });
+
+        modelBuilder.Entity<PlatformEmailCampaignRecipient>(builder =>
+        {
+            builder.ToTable("PlatformEmailCampaignRecipients");
+            builder.HasIndex(x => x.CampaignId);
+            builder.HasIndex(x => new { x.CampaignId, x.Status, x.NextAttemptAtUtc });
+            builder.HasIndex(x => new { x.CampaignId, x.TenantAccountId });
+            builder.HasIndex(x => new { x.CampaignId, x.RecipientEmail });
+            builder.Property(x => x.TenantCode).HasMaxLength(40);
+            builder.Property(x => x.TenantName).HasMaxLength(150);
+            builder.Property(x => x.RecipientEmail).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.ProviderMessage).HasMaxLength(500);
+            builder.HasOne<PlatformEmailCampaign>()
+                .WithMany()
+                .HasForeignKey(x => x.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasOne<TenantAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.TenantAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             ConfigureSoftDelete(builder);
@@ -506,6 +621,76 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
                 .WithMany()
                 .HasForeignKey(x => x.CariAccountId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<CheckNote>(builder =>
+        {
+            builder.ToTable("CheckNotes");
+            builder.HasIndex(x => new { x.TenantAccountId, x.Code }).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.HasIndex(x => new { x.TenantAccountId, x.Status, x.DueDateUtc });
+            builder.HasIndex(x => new { x.TenantAccountId, x.CariAccountId, x.DueDateUtc });
+            builder.Property(x => x.Code).HasMaxLength(40).IsRequired();
+            builder.Property(x => x.Currency).HasMaxLength(5).IsRequired();
+            builder.Property(x => x.Amount).HasPrecision(18, 2);
+            builder.Property(x => x.BankName).HasMaxLength(100);
+            builder.Property(x => x.BranchName).HasMaxLength(100);
+            builder.Property(x => x.AccountNo).HasMaxLength(50);
+            builder.Property(x => x.SerialNo).HasMaxLength(50);
+            builder.Property(x => x.Description).HasMaxLength(500);
+            builder.Property(x => x.LastActionNote).HasMaxLength(500);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<FinanceMovement>()
+                .WithMany()
+                .HasForeignKey(x => x.RelatedFinanceMovementId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<Quote>(builder =>
+        {
+            builder.ToTable("Quotes");
+            builder.HasIndex(x => new { x.TenantAccountId, x.QuoteNumber }).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.Property(x => x.QuoteNumber).HasMaxLength(40).IsRequired();
+            builder.Property(x => x.CustomerName).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.CustomerPhone).HasMaxLength(50);
+            builder.Property(x => x.CustomerEmail).HasMaxLength(100);
+            builder.Property(x => x.OverallDiscountPercent).HasPrecision(5, 2);
+            builder.Property(x => x.TaxPercent).HasPrecision(5, 2);
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
+                .OnDelete(DeleteBehavior.SetNull);
+            builder.HasOne<SalesOrder>()
+                .WithMany()
+                .HasForeignKey(x => x.ConvertedSalesOrderId)
+                .OnDelete(DeleteBehavior.SetNull);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.QuoteId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<QuoteItem>(builder =>
+        {
+            builder.ToTable("QuoteItems");
+            builder.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Unit).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.Property(x => x.DiscountPercent).HasPrecision(5, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             ConfigureTenantEntity(builder);
         });

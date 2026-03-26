@@ -77,7 +77,9 @@ public sealed class RegisterSaasCommandHandler(
             tenant.Name,
             tenant.Plan,
             tenant.SubscriptionStatus,
-            planConfig.Features);
+            planConfig.Features,
+            token.ExpiresAtUtc,
+            user.RefreshTokenExpiresAtUtc);
     }
 
     private async Task<string> GenerateUniqueTenantCodeAsync(string companyName, CancellationToken cancellationToken)

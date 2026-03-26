@@ -45,6 +45,8 @@ public sealed class BootstrapAdminCommandHandler(
             null,
             null,
             null,
-            []);
+            [],
+            token.ExpiresAtUtc,
+            user.RefreshTokenExpiresAtUtc);
     }
 }

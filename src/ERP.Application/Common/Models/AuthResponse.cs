@@ -12,4 +12,6 @@ public sealed record AuthResponse(
     string? TenantName = null,
     SubscriptionPlan? SubscriptionPlan = null,
     SubscriptionStatus? SubscriptionStatus = null,
-    IReadOnlyList<string>? Features = null);
+    IReadOnlyList<string>? Features = null,
+    DateTime? ExpiresAtUtc = null,
+    DateTime? RefreshTokenExpiresAtUtc = null);

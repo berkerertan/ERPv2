@@ -9,6 +9,8 @@ namespace ERP.API.Common;
 
 public static class DevelopmentDataSeeder
 {
+    private static readonly SemaphoreSlim SeedLock = new(1, 1);
+
     public static async Task SeedAsync(WebApplication app, CancellationToken cancellationToken = default)
     {
         if (!app.Environment.IsDevelopment())
@@ -16,84 +18,94 @@ public static class DevelopmentDataSeeder
             return;
         }
 
-        using var scope = app.Services.CreateScope();
-        var services = scope.ServiceProvider;
-        var dbContext = services.GetRequiredService<ErpDbContext>();
-        var passwordHasher = services.GetRequiredService<IPasswordHasher>();
-        var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DevelopmentDataSeeder");
-
-        await dbContext.Database.MigrateAsync(cancellationToken);
-
-        await EnsureDefaultPlanSettingsAsync(dbContext, cancellationToken);
-        await EnsureDefaultLandingContentAsync(dbContext, cancellationToken);
-
-        // Demo abonelik tenant'lari
-        var demoTier3Tenant = await EnsureTenantAsync(
-            dbContext,
-            name: "Demo Enterprise",
-            code: "demo-tier3",
-            plan: SubscriptionPlan.Enterprise,
-            cancellationToken);
-
-        var demoTier2Tenant = await EnsureTenantAsync(
-            dbContext,
-            name: "Demo Growth",
-            code: "demo-tier2",
-            plan: SubscriptionPlan.Growth,
-            cancellationToken);
-
-        var demoTier1Tenant = await EnsureTenantAsync(
-            dbContext,
-            name: "Demo Starter",
-            code: "demo-tier1",
-            plan: SubscriptionPlan.Starter,
-            cancellationToken);
-
-        var usersChanged = new List<bool>
+        await SeedLock.WaitAsync(cancellationToken);
+        try
         {
-            await UpsertUserAsync(
-                dbContext, passwordHasher,
-                userName: "platform.admin",
-                email: "platform.admin@erp.local",
-                password: "Test123!",
-                role: AppRoles.Admin,
-                tenantId: null,
-                cancellationToken),
+            using var scope = app.Services.CreateScope();
+            var services = scope.ServiceProvider;
+            var dbContext = services.GetRequiredService<ErpDbContext>();
+            var passwordHasher = services.GetRequiredService<IPasswordHasher>();
+            var logger = services.GetRequiredService<ILoggerFactory>().CreateLogger("DevelopmentDataSeeder");
 
-            await UpsertUserAsync(
-                dbContext, passwordHasher,
-                userName: "demo",
-                email: "demo@erp.local",
-                password: "Test123!",
-                role: AppRoles.Tier3,
-                tenantId: demoTier3Tenant.Id,
-                cancellationToken),
+            await dbContext.Database.MigrateAsync(cancellationToken);
 
-            await UpsertUserAsync(
-                dbContext, passwordHasher,
-                userName: "demo.tier2",
-                email: "demo.tier2@erp.local",
-                password: "Test123!",
-                role: AppRoles.Tier2,
-                tenantId: demoTier2Tenant.Id,
-                cancellationToken),
+            await EnsureDefaultPlanSettingsAsync(dbContext, cancellationToken);
+            await EnsureDefaultLandingContentAsync(dbContext, cancellationToken);
+            await EnsureDefaultEmailTemplatesAsync(dbContext, cancellationToken);
 
-            await UpsertUserAsync(
-                dbContext, passwordHasher,
-                userName: "demo.tier1",
-                email: "demo.tier1@erp.local",
-                password: "Test123!",
-                role: AppRoles.Tier1,
-                tenantId: demoTier1Tenant.Id,
-                cancellationToken)
-        };
+            // Demo abonelik tenant'lari
+            var demoTier3Tenant = await EnsureTenantAsync(
+                dbContext,
+                name: "Demo Enterprise",
+                code: "demo-tier3",
+                plan: SubscriptionPlan.Enterprise,
+                cancellationToken);
 
-        if (usersChanged.Any(x => x))
-        {
-            await dbContext.SaveChangesAsync(cancellationToken);
-            logger.LogInformation("Development users ensured: platform.admin, demo, demo.tier2, demo.tier1.");
+            var demoTier2Tenant = await EnsureTenantAsync(
+                dbContext,
+                name: "Demo Growth",
+                code: "demo-tier2",
+                plan: SubscriptionPlan.Growth,
+                cancellationToken);
+
+            var demoTier1Tenant = await EnsureTenantAsync(
+                dbContext,
+                name: "Demo Starter",
+                code: "demo-tier1",
+                plan: SubscriptionPlan.Starter,
+                cancellationToken);
+
+            await CleanupTransientDemoUsersAsync(dbContext, demoTier3Tenant.Id, cancellationToken);
+
+            var usersChanged = new List<bool>
+            {
+                await UpsertUserAsync(
+                    dbContext, passwordHasher,
+                    userName: "platform.admin",
+                    email: "platform.admin@erp.local",
+                    password: "Test123!",
+                    role: AppRoles.Admin,
+                    tenantId: null,
+                    cancellationToken),
+
+                await UpsertUserAsync(
+                    dbContext, passwordHasher,
+                    userName: "demo",
+                    email: "demo@erp.local",
+                    password: "Test123!",
+                    role: AppRoles.Tier3,
+                    tenantId: demoTier3Tenant.Id,
+                    cancellationToken),
+
+                await UpsertUserAsync(
+                    dbContext, passwordHasher,
+                    userName: "demo.tier2",
+                    email: "demo.tier2@erp.local",
+                    password: "Test123!",
+                    role: AppRoles.Tier2,
+                    tenantId: demoTier2Tenant.Id,
+                    cancellationToken),
+
+                await UpsertUserAsync(
+                    dbContext, passwordHasher,
+                    userName: "demo.tier1",
+                    email: "demo.tier1@erp.local",
+                    password: "Test123!",
+                    role: AppRoles.Tier1,
+                    tenantId: demoTier1Tenant.Id,
+                    cancellationToken)
+            };
+
+            if (usersChanged.Any(x => x))
+            {
+                await dbContext.SaveChangesAsync(cancellationToken);
+                logger.LogInformation("Development users ensured: platform.admin, demo, demo.tier2, demo.tier1.");
+            }
         }
-
+        finally
+        {
+            SeedLock.Release();
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -666,7 +678,9 @@ public static class DevelopmentDataSeeder
         CancellationToken cancellationToken)
     {
         var existing = await dbContext.Users
-            .FirstOrDefaultAsync(x => x.UserName == userName, cancellationToken);
+            .FirstOrDefaultAsync(
+                x => x.UserName == userName || x.Email == email,
+                cancellationToken);
 
         if (existing is null)
         {
@@ -686,6 +700,9 @@ public static class DevelopmentDataSeeder
         if (!string.Equals(existing.Email, email, StringComparison.OrdinalIgnoreCase))
         { existing.Email = email; changed = true; }
 
+        if (!string.Equals(existing.UserName, userName, StringComparison.OrdinalIgnoreCase))
+        { existing.UserName = userName; changed = true; }
+
         if (!string.Equals(existing.Role, role, StringComparison.OrdinalIgnoreCase))
         { existing.Role = role; changed = true; }
 
@@ -698,6 +715,48 @@ public static class DevelopmentDataSeeder
         if (changed) existing.UpdatedAtUtc = DateTime.UtcNow;
 
         return changed;
+    }
+
+    private static async Task CleanupTransientDemoUsersAsync(
+        ErpDbContext dbContext,
+        Guid demoTier3TenantId,
+        CancellationToken cancellationToken)
+    {
+        var junkUsers = await dbContext.Users
+            .Where(x =>
+                x.TenantAccountId == demoTier3TenantId
+                && EF.Functions.Like(x.UserName, "demo[_]%")
+                && EF.Functions.Like(x.Email, "demo[_]%@example.com"))
+            .ToListAsync(cancellationToken);
+
+        if (junkUsers.Count == 0)
+        {
+            return;
+        }
+
+        var junkUserIds = junkUsers.Select(x => x.Id).ToList();
+
+        var sessions = await dbContext.UserSessions
+            .Where(x => junkUserIds.Contains(x.UserId))
+            .ToListAsync(cancellationToken);
+
+        if (sessions.Count > 0)
+        {
+            dbContext.UserSessions.RemoveRange(sessions);
+        }
+
+        var activityLogs = await dbContext.SystemActivityLogs
+            .Where(x => x.UserId.HasValue && junkUserIds.Contains(x.UserId.Value))
+            .ToListAsync(cancellationToken);
+
+        foreach (var log in activityLogs)
+        {
+            log.UserId = null;
+            log.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
+        dbContext.Users.RemoveRange(junkUsers);
+        await dbContext.SaveChangesAsync(cancellationToken);
     }
 
     private static async Task EnsureDefaultPlanSettingsAsync(
@@ -743,6 +802,60 @@ public static class DevelopmentDataSeeder
         };
 
         dbContext.LandingPageContents.AddRange(defaults);
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task EnsureDefaultEmailTemplatesAsync(
+        ErpDbContext dbContext, CancellationToken cancellationToken)
+    {
+        var defaults = new List<PlatformEmailTemplate>
+        {
+            new()
+            {
+                Key = "welcome",
+                Name = "Welcome Mail",
+                SubjectTemplate = "Hos geldiniz {{TenantName}}",
+                BodyTemplate = "<p>Merhaba {{TenantName}},</p><p>ERP platformuna hos geldiniz. Tenant kodunuz: <strong>{{TenantCode}}</strong>.</p><p>Tarih: {{NowUtc}} UTC</p>",
+                Description = "Yeni abone olan tenantlara gonderilen karsilama e-postasi.",
+                IsActive = true
+            },
+            new()
+            {
+                Key = "invoice",
+                Name = "Invoice Mail",
+                SubjectTemplate = "Abonelik fatura bilgilendirmesi - {{TenantName}}",
+                BodyTemplate = "<p>Merhaba {{TenantName}},</p><p>Abonelik planiniz: <strong>{{Plan}}</strong>. Durum: {{SubscriptionStatus}}.</p><p>Son odeme tarihi: <strong>{{SubscriptionEndDate}}</strong></p>",
+                Description = "Fatura veya plan bilgilendirme e-postasi.",
+                IsActive = true
+            },
+            new()
+            {
+                Key = "reminder",
+                Name = "Reminder Mail",
+                SubjectTemplate = "Hatirlatma - {{TenantName}}",
+                BodyTemplate = "<p>Merhaba {{TenantName}},</p><p>Bu bir hatirlatma e-postasidir.</p><p>Tarih: {{NowUtc}} UTC</p>",
+                Description = "Genel hatirlatma e-postasi.",
+                IsActive = true
+            }
+        };
+
+        foreach (var template in defaults)
+        {
+            var existing = await dbContext.PlatformEmailTemplates.FirstOrDefaultAsync(x => x.Key == template.Key, cancellationToken);
+            if (existing is null)
+            {
+                dbContext.PlatformEmailTemplates.Add(template);
+                continue;
+            }
+
+            existing.Name = template.Name;
+            existing.SubjectTemplate = template.SubjectTemplate;
+            existing.BodyTemplate = template.BodyTemplate;
+            existing.Description = template.Description;
+            existing.IsActive = template.IsActive;
+            existing.UpdatedAtUtc = DateTime.UtcNow;
+        }
+
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 }

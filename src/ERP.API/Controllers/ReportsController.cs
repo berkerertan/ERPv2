@@ -22,7 +22,60 @@ namespace ERP.API.Controllers;
 [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
 public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext) : ControllerBase
 {
+    [HttpGet("dashboard-summary")]
+    [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<DashboardSummaryDto>> GetDashboardSummary(CancellationToken cancellationToken)
+    {
+        // Sales total (Approved sales orders)
+        var totalSales = await dbContext.SalesOrders
+            .AsNoTracking()
+            .Where(x => x.Status == OrderStatus.Approved)
+            .Include(x => x.Items)
+            .SelectMany(x => x.Items)
+            .SumAsync(i => i.Quantity * i.UnitPrice, cancellationToken);
+
+        var totalOrderCount = await dbContext.SalesOrders.CountAsync(cancellationToken);
+        var totalProductCount = await dbContext.Products.CountAsync(cancellationToken);
+        var totalActiveCariCount = await dbContext.CariAccounts.CountAsync(cancellationToken);
+
+        // Treasury balances
+        var totalBankBalance = await dbContext.BankAccounts.AsNoTracking().SumAsync(x => x.Balance, cancellationToken);
+        var totalCashBalance = await dbContext.CashAccounts.AsNoTracking().SumAsync(x => x.Balance, cancellationToken);
+
+        // Overdue receivables (CariDebtItems with remaining balance)
+        var overdueReceivables = await dbContext.CariDebtItems
+            .AsNoTracking()
+            .Where(x => x.RemainingBalance > 0)
+            .SumAsync(x => x.RemainingBalance, cancellationToken);
+
+        // Overdue check notes
+        var overdueCheckNoteCount = await dbContext.CheckNotes
+            .AsNoTracking()
+            .Where(x =>
+                (x.Status == CheckNoteStatus.Portfolio || x.Status == CheckNoteStatus.Endorsed) &&
+                x.DueDateUtc < DateTime.UtcNow)
+            .CountAsync(cancellationToken);
+
+        // Pending quotes
+        var pendingQuoteCount = await dbContext.Quotes
+            .AsNoTracking()
+            .Where(x => x.Status == QuoteStatus.Sent || x.Status == QuoteStatus.Draft)
+            .CountAsync(cancellationToken);
+
+        return Ok(new DashboardSummaryDto(
+            Math.Round(totalSales, 2),
+            totalOrderCount,
+            totalProductCount,
+            totalActiveCariCount,
+            Math.Round(totalBankBalance, 2),
+            Math.Round(totalCashBalance, 2),
+            Math.Round(overdueReceivables, 2),
+            overdueCheckNoteCount,
+            pendingQuoteCount));
+    }
+
     [HttpGet("stock")]
+
     [ProducesResponseType(typeof(IReadOnlyList<StockReportItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<StockReportItemDto>>> GetStock(CancellationToken cancellationToken)
     {
