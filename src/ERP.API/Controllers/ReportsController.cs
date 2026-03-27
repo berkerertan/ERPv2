@@ -19,44 +19,43 @@ namespace ERP.API.Controllers;
 [ApiController]
 [Route("api/reports")]
 [RequirePolicy("TierUserOrAdmin")]
-[RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
 public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext) : ControllerBase
 {
     [HttpGet("dashboard-summary")]
     [ProducesResponseType(typeof(DashboardSummaryDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<DashboardSummaryDto>> GetDashboardSummary(CancellationToken cancellationToken)
     {
-        // Sales total (Approved sales orders)
+        // Sales total — onaylı siparişlerin toplam tutarı
         var totalSales = await dbContext.SalesOrders
             .AsNoTracking()
             .Where(x => x.Status == OrderStatus.Approved)
-            .Include(x => x.Items)
             .SelectMany(x => x.Items)
-            .SumAsync(i => i.Quantity * i.UnitPrice, cancellationToken);
+            .SumAsync(i => (decimal?)( i.Quantity * i.UnitPrice), cancellationToken) ?? 0m;
 
-        var totalOrderCount = await dbContext.SalesOrders.CountAsync(cancellationToken);
-        var totalProductCount = await dbContext.Products.CountAsync(cancellationToken);
-        var totalActiveCariCount = await dbContext.CariAccounts.CountAsync(cancellationToken);
+        var totalOrderCount       = await dbContext.SalesOrders.CountAsync(cancellationToken);
+        var totalProductCount     = await dbContext.Products.CountAsync(cancellationToken);
+        var totalActiveCariCount  = await dbContext.CariAccounts.CountAsync(cancellationToken);
 
-        // Treasury balances
-        var totalBankBalance = await dbContext.BankAccounts.AsNoTracking().SumAsync(x => x.Balance, cancellationToken);
-        var totalCashBalance = await dbContext.CashAccounts.AsNoTracking().SumAsync(x => x.Balance, cancellationToken);
+        // Kasa ve banka bakiyeleri
+        var totalBankBalance = await dbContext.BankAccounts.AsNoTracking().SumAsync(x => (decimal?)x.Balance, cancellationToken) ?? 0m;
+        var totalCashBalance = await dbContext.CashAccounts.AsNoTracking().SumAsync(x => (decimal?)x.Balance, cancellationToken) ?? 0m;
 
-        // Overdue receivables (CariDebtItems with remaining balance)
+        // Vadesi GEÇMİŞ alacaklar (RemainingBalance > 0 VE dueDate < bugün)
+        var now = DateTime.UtcNow;
         var overdueReceivables = await dbContext.CariDebtItems
             .AsNoTracking()
-            .Where(x => x.RemainingBalance > 0)
-            .SumAsync(x => x.RemainingBalance, cancellationToken);
+            .Where(x => x.RemainingBalance > 0 && x.TransactionDate < now)
+            .SumAsync(x => (decimal?)x.RemainingBalance, cancellationToken) ?? 0m;
 
-        // Overdue check notes
+        // Vadesi GEÇMİŞ çek/senet sayısı (portföyde/ciro edilmiş ve dueDate geçmiş)
         var overdueCheckNoteCount = await dbContext.CheckNotes
             .AsNoTracking()
             .Where(x =>
                 (x.Status == CheckNoteStatus.Portfolio || x.Status == CheckNoteStatus.Endorsed) &&
-                x.DueDateUtc < DateTime.UtcNow)
+                x.DueDateUtc < now)
             .CountAsync(cancellationToken);
 
-        // Pending quotes
+        // Bekleyen teklif sayısı
         var pendingQuoteCount = await dbContext.Quotes
             .AsNoTracking()
             .Where(x => x.Status == QuoteStatus.Sent || x.Status == QuoteStatus.Draft)
@@ -75,7 +74,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("stock")]
-
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<StockReportItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<StockReportItemDto>>> GetStock(CancellationToken cancellationToken)
     {
@@ -84,6 +83,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("sales")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<SalesReportItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<SalesReportItemDto>>> GetSales(CancellationToken cancellationToken)
     {
@@ -92,6 +92,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("purchases")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<PurchaseReportItemDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<PurchaseReportItemDto>>> GetPurchases(CancellationToken cancellationToken)
     {
@@ -100,6 +101,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("cari-balances")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<CariBalanceDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<CariBalanceDto>>> GetCariBalances(CancellationToken cancellationToken)
     {
@@ -108,6 +110,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("cari-aging")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<CariAgingDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<CariAgingDto>>> GetCariAging(CancellationToken cancellationToken)
     {
@@ -116,6 +119,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("income-expense")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IncomeExpenseSummaryDto), StatusCodes.Status200OK)]
     public async Task<ActionResult<IncomeExpenseSummaryDto>> GetIncomeExpense(CancellationToken cancellationToken)
     {
@@ -124,6 +128,7 @@ public sealed class ReportsController(IMediator mediator, ErpDbContext dbContext
     }
 
     [HttpGet("finance/cash-flow-forecast")]
+    [RequireSubscriptionFeature(SubscriptionFeatures.Reports)]
     [ProducesResponseType(typeof(IReadOnlyList<CashFlowForecastDto>), StatusCodes.Status200OK)]
     public async Task<ActionResult<IReadOnlyList<CashFlowForecastDto>>> GetCashFlowForecast(
         [FromQuery] int days = 30,

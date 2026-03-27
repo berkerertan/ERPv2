@@ -49,6 +49,14 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<Invoice> Invoices => Set<Invoice>();
     public DbSet<InvoiceItem> InvoiceItems => Set<InvoiceItem>();
 
+    public DbSet<Waybill> Waybills => Set<Waybill>();
+    public DbSet<WaybillItem> WaybillItems => Set<WaybillItem>();
+    public DbSet<Return> Returns => Set<Return>();
+    public DbSet<ReturnItem> ReturnItems => Set<ReturnItem>();
+    public DbSet<PriceList> PriceLists => Set<PriceList>();
+    public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -692,6 +700,93 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<Waybill>(builder =>
+        {
+            builder.ToTable("Waybills");
+            builder.Property(x => x.WaybillNo).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.DeliveryAddress).HasMaxLength(500);
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<WaybillItem>(builder =>
+        {
+            builder.ToTable("WaybillItems");
+            builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<Return>(builder =>
+        {
+            builder.ToTable("Returns");
+            builder.Property(x => x.ReturnNo).HasMaxLength(50).IsRequired();
+            builder.Property(x => x.Reason).HasMaxLength(1000);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<ReturnItem>(builder =>
+        {
+            builder.ToTable("ReturnItems");
+            builder.Property(x => x.Quantity).HasPrecision(18, 4);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<PriceList>(builder =>
+        {
+            builder.ToTable("PriceLists");
+            builder.Property(x => x.Name).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Description).HasMaxLength(500);
+            builder.Property(x => x.DiscountRate).HasPrecision(5, 2);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<PriceListItem>(builder =>
+        {
+            builder.ToTable("PriceListItems");
+            builder.Property(x => x.CustomPrice).HasPrecision(18, 2);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<UserNotification>(builder =>
+        {
+            builder.ToTable("UserNotifications");
+            builder.Property(x => x.Type).HasMaxLength(20).IsRequired();
+            builder.Property(x => x.Title).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Message).HasMaxLength(1000).IsRequired();
+            builder.Property(x => x.Link).HasMaxLength(500);
             ConfigureTenantEntity(builder);
         });
     }

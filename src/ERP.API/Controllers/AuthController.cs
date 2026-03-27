@@ -12,6 +12,7 @@ using ERP.Infrastructure.Persistence;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
@@ -50,6 +51,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("bootstrap-admin")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthResponse>> BootstrapAdmin(
@@ -62,6 +64,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("register")]
     [ProducesResponseType(typeof(UserRegistrationResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<UserRegistrationResponse>> Register(
@@ -74,6 +77,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("register-saas")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthResponse>> RegisterSaas(
@@ -92,6 +96,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthResponse>> Login(
@@ -104,6 +109,7 @@ public sealed class AuthController(
     }
 
     [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("refresh")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthResponse>> Refresh(
@@ -320,6 +326,11 @@ public sealed class AuthController(
         if (newPassword.Length < 6)
         {
             return BadRequest("NewPassword must be at least 6 characters.");
+        }
+
+        if (IsProtectedSeedAccount(user))
+        {
+            return BadRequest("Demo/system accounts cannot change password.");
         }
 
         if (!passwordHasher.Verify(currentPassword, user.PasswordHash))

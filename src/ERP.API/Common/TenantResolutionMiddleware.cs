@@ -61,6 +61,13 @@ public sealed class TenantResolutionMiddleware(RequestDelegate next)
 
         if (!string.IsNullOrWhiteSpace(tenantCode))
         {
+            if (tenantCode.Length > 100)
+            {
+                context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                await context.Response.WriteAsync("Invalid tenant identifier.");
+                return;
+            }
+
             var normalizedCode = tenantCode.Trim().ToLowerInvariant();
             var tenant = await dbContext.TenantAccounts
                 .AsNoTracking()
