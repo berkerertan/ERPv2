@@ -323,9 +323,9 @@ public sealed class AuthController(
             return BadRequest("CurrentPassword and NewPassword are required.");
         }
 
-        if (newPassword.Length < 6)
+        if (newPassword.Length < 8)
         {
-            return BadRequest("NewPassword must be at least 6 characters.");
+            return BadRequest("NewPassword must be at least 8 characters.");
         }
 
         if (IsProtectedSeedAccount(user))
