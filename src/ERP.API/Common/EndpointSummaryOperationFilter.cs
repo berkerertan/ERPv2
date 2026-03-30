@@ -139,6 +139,11 @@ public sealed class EndpointSummaryOperationFilter : IOperationFilter
             return "Barkod ile urun bilgisini getirir.";
         }
 
+        if (p.Contains("/api/documentscanner/analyze"))
+        {
+            return "Yuklenen belge gorselini AI ile analiz ederek tedarikci ve kalem bilgilerini cikartir.";
+        }
+
         if (p.Contains("/api/products/bulk-price-update"))
         {
             return "Secili urunlerin satis fiyatlarini toplu olarak gunceller.";

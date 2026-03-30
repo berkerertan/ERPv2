@@ -15,10 +15,10 @@ public sealed class ProfileSettingsTests
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: true);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var token = await LoginAsync(client, "demo", "Test123!");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var credentials = await RegisterAndLoginAsync(client, "profile");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
 
-        var newUserName = $"demo_{Guid.NewGuid():N}".Substring(0, 20);
+        var newUserName = $"profile_{Guid.NewGuid():N}".Substring(0, 20);
         var newEmail = $"{newUserName}@example.com";
 
         var updateResponse = await client.PutAsJsonAsync("/api/auth/me", new
@@ -46,13 +46,13 @@ public sealed class ProfileSettingsTests
         await using var factory = new ErpApiWebApplicationFactory(enforceAuthorization: true);
         using var client = factory.CreateClient(new WebApplicationFactoryClientOptions { AllowAutoRedirect = false });
 
-        var token = await LoginAsync(client, "demo", "Test123!");
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var credentials = await RegisterAndLoginAsync(client, "password");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", credentials.AccessToken);
 
         var newPassword = "Test123!_new";
         var changePasswordResponse = await client.PutAsJsonAsync("/api/auth/me/password", new
         {
-            currentPassword = "Test123!",
+            currentPassword = credentials.Password,
             newPassword = newPassword
         });
 
@@ -62,19 +62,38 @@ public sealed class ProfileSettingsTests
 
         var oldLoginResponse = await client.PostAsJsonAsync("/api/auth/login", new
         {
-            userName = "demo",
-            password = "Test123!"
+            userName = credentials.UserName,
+            password = credentials.Password
         });
         Assert.Equal(HttpStatusCode.Unauthorized, oldLoginResponse.StatusCode);
 
         var newLoginResponse = await client.PostAsJsonAsync("/api/auth/login", new
         {
-            userName = "demo",
+            userName = credentials.UserName,
             password = newPassword
         });
         Assert.True(
             newLoginResponse.IsSuccessStatusCode,
             $"Expected successful login with new password but got {(int)newLoginResponse.StatusCode}: {await newLoginResponse.Content.ReadAsStringAsync()}");
+    }
+
+    private static async Task<TestUserCredentials> RegisterAndLoginAsync(HttpClient client, string prefix)
+    {
+        var userName = $"{prefix}_{Guid.NewGuid():N}".Substring(0, 20);
+        var email = $"{userName}@example.com";
+        const string password = "Test123!";
+
+        var registerResponse = await client.PostAsJsonAsync("/api/auth/register", new
+        {
+            userName,
+            email,
+            password,
+            role = "1.Kademe"
+        });
+        registerResponse.EnsureSuccessStatusCode();
+
+        var token = await LoginAsync(client, userName, password);
+        return new TestUserCredentials(userName, password, token);
     }
 
     private static async Task<string> LoginAsync(HttpClient client, string userName, string password)
@@ -86,4 +105,6 @@ public sealed class ProfileSettingsTests
         return document.RootElement.GetProperty("accessToken").GetString()
             ?? throw new InvalidOperationException("Access token missing in login response.");
     }
+
+    private sealed record TestUserCredentials(string UserName, string Password, string AccessToken);
 }

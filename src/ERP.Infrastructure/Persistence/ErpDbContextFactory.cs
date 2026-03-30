@@ -9,11 +9,20 @@ public sealed class ErpDbContextFactory : IDesignTimeDbContextFactory<ErpDbConte
 {
     public ErpDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("ERPV2_CONNECTION")
-            ?? "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
-
+        var provider = Environment.GetEnvironmentVariable("ERPV2_DB_PROVIDER") ?? "SqlServer";
+        var connectionString = Environment.GetEnvironmentVariable("ERPV2_CONNECTION");
         var optionsBuilder = new DbContextOptionsBuilder<ErpDbContext>();
-        optionsBuilder.UseSqlServer(connectionString);
+
+        if (string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            optionsBuilder.UseSqlite(connectionString ?? "Data Source=erpv2-dev.db");
+        }
+        else
+        {
+            optionsBuilder.UseSqlServer(
+                connectionString
+                ?? "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true");
+        }
 
         return new ErpDbContext(optionsBuilder.Options, new CurrentTenantService(new HttpContextAccessor()));
     }

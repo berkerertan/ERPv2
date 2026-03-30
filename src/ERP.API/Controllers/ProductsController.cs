@@ -238,8 +238,24 @@ public sealed class ProductsController(
 
         var previousImageUrl = product.ImageUrl;
 
-        await using var stream = file.OpenReadStream();
-        var upload = await mediaStorageService.UploadProductImageAsync(stream, file.FileName, file.ContentType, cancellationToken);
+        MediaUploadResult upload;
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            upload = await mediaStorageService.UploadProductImageAsync(stream, file.FileName, file.ContentType, cancellationToken);
+        }
+        catch (InvalidOperationException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is temporarily unavailable.");
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is temporarily unavailable.");
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage request timed out.");
+        }
 
         product.ImageUrl = upload.Url;
         product.UpdatedAtUtc = DateTime.UtcNow;

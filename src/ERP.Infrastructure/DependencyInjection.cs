@@ -1,5 +1,6 @@
 using ERP.Application.Abstractions.Imports;
 using ERP.Application.Abstractions.Media;
+using ERP.Application.Abstractions.DocumentScanner;
 using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Abstractions.Security;
@@ -13,6 +14,8 @@ using ERP.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using System.IO;
 
 namespace ERP.Infrastructure;
 
@@ -24,12 +27,27 @@ public static class DependencyInjection
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
         services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
+        services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
+        services.Configure<ClaudeOptions>(configuration.GetSection(ClaudeOptions.SectionName));
 
-        var connectionString = configuration.GetConnectionString("DefaultConnection")
-            ?? "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+        var provider = (configuration["Database:Provider"] ?? "SqlServer").Trim();
+        var configuredConnectionString = configuration.GetConnectionString("DefaultConnection");
+        var sqlitePath = configuration["Database:SqlitePath"];
+        var defaultSqlServerConnection =
+            "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+        if (string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            var sqliteConnectionString = BuildSqliteConnectionString(configuredConnectionString, sqlitePath);
+            services.AddDbContext<ErpDbContext>(options =>
+                options.UseSqlite(sqliteConnectionString));
+        }
+        else
+        {
+            services.AddDbContext<ErpDbContext>(options =>
+                options.UseSqlServer(SelectConnectionString(configuredConnectionString, defaultSqlServerConnection)));
+        }
 
         services.AddScoped<ICurrentTenantService, CurrentTenantService>();
-        services.AddDbContext<ErpDbContext>(options => options.UseSqlServer(connectionString));
 
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ITenantAccountRepository, TenantAccountRepository>();
@@ -52,7 +70,99 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IMediaStorageService, CloudinaryMediaStorageService>();
+        services.AddHttpClient<IDocumentScannerService, GeminiDocumentScannerService>((serviceProvider, client) =>
+        {
+            var geminiOptions = serviceProvider.GetRequiredService<IOptions<GeminiOptions>>().Value;
+            var claudeOptions = serviceProvider.GetRequiredService<IOptions<ClaudeOptions>>().Value;
+            var timeoutSeconds = Math.Clamp(
+                Math.Max(geminiOptions.RequestTimeoutSeconds, claudeOptions.RequestTimeoutSeconds),
+                5,
+                180);
+            client.Timeout = TimeSpan.FromSeconds(timeoutSeconds);
+        });
 
         return services;
+    }
+
+    private static string SelectConnectionString(string? configuredConnectionString, string fallbackConnectionString)
+    {
+        return string.IsNullOrWhiteSpace(configuredConnectionString)
+            ? fallbackConnectionString
+            : configuredConnectionString;
+    }
+
+    private static string BuildSqliteConnectionString(string? configuredConnectionString, string? sqlitePath)
+    {
+        if (!string.IsNullOrWhiteSpace(configuredConnectionString))
+        {
+            return NormalizeSqliteConnectionString(configuredConnectionString);
+        }
+
+        return $"Data Source={ResolveSqlitePath(sqlitePath)}";
+    }
+
+    private static string NormalizeSqliteConnectionString(string configuredConnectionString)
+    {
+        const string marker = "Data Source=";
+        var markerIndex = configuredConnectionString.IndexOf(marker, StringComparison.OrdinalIgnoreCase);
+        if (markerIndex < 0)
+        {
+            return configuredConnectionString;
+        }
+
+        var valueStart = markerIndex + marker.Length;
+        var valueEnd = configuredConnectionString.IndexOf(';', valueStart);
+        if (valueEnd < 0)
+        {
+            valueEnd = configuredConnectionString.Length;
+        }
+
+        var rawPath = configuredConnectionString.Substring(valueStart, valueEnd - valueStart).Trim().Trim('"');
+        if (string.IsNullOrWhiteSpace(rawPath) || rawPath.StartsWith('|') || Path.IsPathRooted(rawPath))
+        {
+            return configuredConnectionString;
+        }
+
+        var absolutePath = ResolveSqlitePath(rawPath);
+        var absoluteSegment = $"Data Source={absolutePath}";
+        return configuredConnectionString.Remove(markerIndex, valueEnd - markerIndex).Insert(markerIndex, absoluteSegment);
+    }
+
+    private static string ResolveSqlitePath(string? sqlitePath)
+    {
+        var appBaseDirectory = ResolveExecutableDirectory();
+        if (string.IsNullOrWhiteSpace(sqlitePath))
+        {
+            sqlitePath = Path.Combine("data", "erpv2-offline.db");
+        }
+
+        var targetPath = sqlitePath.Trim();
+        if (!Path.IsPathRooted(targetPath))
+        {
+            targetPath = Path.Combine(appBaseDirectory, targetPath);
+        }
+
+        var targetDirectory = Path.GetDirectoryName(targetPath);
+        if (!string.IsNullOrWhiteSpace(targetDirectory))
+        {
+            Directory.CreateDirectory(targetDirectory);
+        }
+
+        return targetPath;
+    }
+
+    private static string ResolveExecutableDirectory()
+    {
+        var processPath = Environment.ProcessPath;
+        if (!string.IsNullOrWhiteSpace(processPath))
+        {
+            var processDirectory = Path.GetDirectoryName(processPath);
+            if (!string.IsNullOrWhiteSpace(processDirectory))
+            {
+                return processDirectory;
+            }
+        }
+
+        return AppContext.BaseDirectory;
     }
 }

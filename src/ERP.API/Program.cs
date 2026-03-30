@@ -3,7 +3,9 @@ using ERP.Application;
 using ERP.Domain.Constants;
 using ERP.Infrastructure;
 using ERP.Infrastructure.Authentication;
+using ERP.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -11,7 +13,11 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = ResolveContentRootPath()
+});
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -112,6 +118,7 @@ builder.Services.AddAuthorization(options =>
 var app = builder.Build();
 var securityOptions = builder.Configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() ?? new SecurityOptions();
 
+await EnsureDatabaseMigratedAsync(app);
 await DevelopmentDataSeeder.SeedAsync(app);
 await SubscriptionRoleSynchronization.ApplyAsync(app);
 
@@ -124,6 +131,8 @@ if (app.Environment.IsDevelopment())
 app.UseExceptionHandler();
 app.UseCors("DevCors");
 app.UseRateLimiter();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 app.Use(async (context, next) =>
 {
@@ -153,12 +162,6 @@ if (securityOptions.EnforceAuthorization)
 app.UseMiddleware<ActivityLoggingMiddleware>();
 
 app.MapControllers();
-app.MapGet("/", () => Results.Ok(new
-{
-    service = "ERPv2 API",
-    environment = app.Environment.EnvironmentName,
-    docs = app.Environment.IsDevelopment() ? "/swagger" : null
-})).AllowAnonymous();
 app.MapGet("/health", () => Results.Ok(new
 {
     status = "ok",
@@ -166,4 +169,71 @@ app.MapGet("/health", () => Results.Ok(new
     authorizationEnforced = securityOptions.EnforceAuthorization
 })).AllowAnonymous();
 
+var indexPath = Path.Combine(app.Environment.WebRootPath ?? string.Empty, "index.html");
+if (File.Exists(indexPath))
+{
+    app.MapFallbackToFile("index.html");
+}
+else
+{
+    app.MapGet("/", () => Results.Ok(new
+    {
+        service = "ERPv2 API",
+        environment = app.Environment.EnvironmentName,
+        docs = app.Environment.IsDevelopment() ? "/swagger" : null
+    })).AllowAnonymous();
+}
+
 app.Run();
+
+static string ResolveContentRootPath()
+{
+    var executableDirectory = ResolveExecutableDirectory();
+    if (File.Exists(Path.Combine(executableDirectory, "appsettings.json")))
+    {
+        return executableDirectory;
+    }
+
+    var currentDirectory = Directory.GetCurrentDirectory();
+    if (File.Exists(Path.Combine(currentDirectory, "appsettings.json")))
+    {
+        return currentDirectory;
+    }
+
+    var baseDirectory = AppContext.BaseDirectory;
+    if (File.Exists(Path.Combine(baseDirectory, "appsettings.json")))
+    {
+        return baseDirectory;
+    }
+
+    return currentDirectory;
+}
+
+static string ResolveExecutableDirectory()
+{
+    var processPath = Environment.ProcessPath;
+    if (!string.IsNullOrWhiteSpace(processPath))
+    {
+        var processDirectory = Path.GetDirectoryName(processPath);
+        if (!string.IsNullOrWhiteSpace(processDirectory))
+        {
+            return processDirectory;
+        }
+    }
+
+    return AppContext.BaseDirectory;
+}
+
+static async Task EnsureDatabaseMigratedAsync(WebApplication app)
+{
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+    var providerName = dbContext.Database.ProviderName ?? string.Empty;
+    if (providerName.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+    {
+        await dbContext.Database.EnsureCreatedAsync();
+        return;
+    }
+
+    await dbContext.Database.MigrateAsync();
+}

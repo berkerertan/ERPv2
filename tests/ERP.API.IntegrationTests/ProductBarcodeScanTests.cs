@@ -17,7 +17,7 @@ public sealed class ProductBarcodeScanTests
         var token = await LoginAsync(client, "demo", "Test123!");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var barcode = "8690001234567";
+        var barcode = GenerateUniqueEan13();
         var productId = await CreateProductAsync(client, $"SCAN-{Guid.NewGuid():N}".Substring(0, 18), "Scan Product", barcode);
 
         var response = await client.GetAsync($"/api/products/scan?barcode={barcode}");
@@ -41,7 +41,7 @@ public sealed class ProductBarcodeScanTests
         var token = await LoginAsync(client, "demo", "Test123!");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        var barcode = "8900000000001";
+        var barcode = GenerateUniqueEan13();
         var response = await client.GetAsync($"/api/products/scan?barcode={barcode}");
         response.EnsureSuccessStatusCode();
 
@@ -86,5 +86,11 @@ public sealed class ProductBarcodeScanTests
         var payload = await response.Content.ReadAsStringAsync();
         var value = JsonSerializer.Deserialize<Guid>(payload);
         return value == Guid.Empty ? throw new InvalidOperationException("Expected a valid Guid response.") : value;
+    }
+
+    private static string GenerateUniqueEan13()
+    {
+        var numericPart = (DateTime.UtcNow.Ticks % 10_000_000_000L).ToString("D10");
+        return $"869{numericPart}";
     }
 }

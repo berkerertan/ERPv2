@@ -20,7 +20,11 @@ public sealed class ErpApiWebApplicationFactory(bool enforceAuthorization) : Web
                     $"Server=(localdb)\\MSSQLLocalDB;Database={_databaseName};Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true",
                 ["Security:EnforceAuthorization"] = enforceAuthorization ? "true" : "false",
                 ["TenantResolution:EnableDevelopmentFallback"] = "true",
-                ["TenantResolution:DefaultTenantCode"] = "demo-tier3"
+                ["TenantResolution:DefaultTenantCode"] = "demo-tier3",
+                ["Cloudinary:Enabled"] = "false",
+                ["Cloudinary:CloudName"] = "",
+                ["Cloudinary:ApiKey"] = "",
+                ["Cloudinary:ApiSecret"] = ""
             };
 
             configBuilder.AddInMemoryCollection(testSettings);
