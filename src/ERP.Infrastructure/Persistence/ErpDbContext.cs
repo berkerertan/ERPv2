@@ -56,6 +56,7 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<PriceList> PriceLists => Set<PriceList>();
     public DbSet<PriceListItem> PriceListItems => Set<PriceListItem>();
     public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+    public DbSet<PosCart> PosCarts => Set<PosCart>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -787,6 +788,19 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.Property(x => x.Title).HasMaxLength(200).IsRequired();
             builder.Property(x => x.Message).HasMaxLength(1000).IsRequired();
             builder.Property(x => x.Link).HasMaxLength(500);
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<PosCart>(builder =>
+        {
+            builder.ToTable("PosCarts");
+            builder.HasIndex(x => new { x.TenantAccountId, x.ShareToken }).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.HasIndex(x => new { x.TenantAccountId, x.UpdatedAtUtc });
+            builder.Property(x => x.Label).HasMaxLength(120).IsRequired();
+            builder.Property(x => x.ShareToken).HasMaxLength(40).IsRequired();
+            builder.Property(x => x.BuyerName).HasMaxLength(150);
+            builder.Property(x => x.PaymentMethod).HasMaxLength(20).IsRequired();
+            builder.Property(x => x.ItemsJson).HasMaxLength(32000).IsRequired();
             ConfigureTenantEntity(builder);
         });
     }

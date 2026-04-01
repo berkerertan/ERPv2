@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 
 ERP_PROJE_YOL_HARITASI.md
+src/ERP.API/wwwroot/downloads/
