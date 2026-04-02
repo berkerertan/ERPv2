@@ -405,6 +405,7 @@ public sealed class ProductsController(
                 WarehouseId = request.WarehouseId,
                 ProductId = item.ProductId,
                 Type = item.QuantityDelta > 0 ? StockMovementType.In : StockMovementType.Out,
+                Reason = StockMovementReason.InventoryAdjustment,
                 Quantity = Math.Abs(item.QuantityDelta),
                 UnitPrice = item.UnitPrice,
                 MovementDateUtc = movementDateUtc,

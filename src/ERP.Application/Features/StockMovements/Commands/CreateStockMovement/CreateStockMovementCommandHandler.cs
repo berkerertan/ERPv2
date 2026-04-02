@@ -24,6 +24,29 @@ public sealed class CreateStockMovementCommandHandler(
             throw new NotFoundException("Product not found.");
         }
 
+        var reason = request.Reason ?? StockMovementReason.ManualAdjustment;
+        if (!IsReasonCompatible(request.Type, reason))
+        {
+            throw new ConflictException("Selected movement reason is not compatible with movement type.");
+        }
+
+        var normalizedReasonNote = NormalizeText(request.ReasonNote, 500);
+        var normalizedProofUrl = NormalizeText(request.ProofImageUrl, 1000);
+        var normalizedProofPublicId = NormalizeText(request.ProofImagePublicId, 300);
+
+        if (reason == StockMovementReason.WasteScrap)
+        {
+            if (string.IsNullOrWhiteSpace(normalizedReasonNote))
+            {
+                throw new ConflictException("Waste/Scrap movement requires a reason note.");
+            }
+
+            if (string.IsNullOrWhiteSpace(normalizedProofUrl))
+            {
+                throw new ConflictException("Waste/Scrap movement requires a proof document.");
+            }
+        }
+
         if (request.Type == StockMovementType.Out)
         {
             var current = await stockMovementRepository.GetCurrentQuantityAsync(
@@ -42,6 +65,10 @@ public sealed class CreateStockMovementCommandHandler(
             WarehouseId = request.WarehouseId,
             ProductId = request.ProductId,
             Type = request.Type,
+            Reason = reason,
+            ReasonNote = normalizedReasonNote,
+            ProofImageUrl = normalizedProofUrl,
+            ProofImagePublicId = normalizedProofPublicId,
             Quantity = request.Quantity,
             UnitPrice = request.UnitPrice,
             ReferenceNo = request.ReferenceNo,
@@ -50,5 +77,37 @@ public sealed class CreateStockMovementCommandHandler(
 
         await stockMovementRepository.AddAsync(movement, cancellationToken);
         return movement.Id;
+    }
+
+    private static bool IsReasonCompatible(StockMovementType type, StockMovementReason reason)
+    {
+        return reason switch
+        {
+            StockMovementReason.PurchaseApproval or
+            StockMovementReason.TransferIn or
+            StockMovementReason.ReturnIn => type == StockMovementType.In,
+
+            StockMovementReason.SalesApproval or
+            StockMovementReason.TransferOut or
+            StockMovementReason.PosSale or
+            StockMovementReason.WasteScrap or
+            StockMovementReason.ReturnOut => type == StockMovementType.Out,
+
+            StockMovementReason.ManualAdjustment or
+            StockMovementReason.InventoryAdjustment => true,
+
+            _ => false
+        };
+    }
+
+    private static string? NormalizeText(string? value, int maxLength)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        return normalized.Length > maxLength ? normalized[..maxLength] : normalized;
     }
 }

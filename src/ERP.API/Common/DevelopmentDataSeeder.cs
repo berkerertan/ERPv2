@@ -62,7 +62,7 @@ public static class DevelopmentDataSeeder
                 await UpsertUserAsync(
                     dbContext, passwordHasher,
                     userName: "platform.admin",
-                    email: "platform.admin@erp.local",
+                    email: "platform.admin@stoknet.local",
                     password: "Test123!",
                     role: AppRoles.Admin,
                     tenantId: null,
@@ -71,7 +71,7 @@ public static class DevelopmentDataSeeder
                 await UpsertUserAsync(
                     dbContext, passwordHasher,
                     userName: "demo",
-                    email: "demo@erp.local",
+                    email: "demo@stoknet.local",
                     password: "Test123!",
                     role: AppRoles.Tier3,
                     tenantId: demoTier3Tenant.Id,
@@ -80,7 +80,7 @@ public static class DevelopmentDataSeeder
                 await UpsertUserAsync(
                     dbContext, passwordHasher,
                     userName: "demo.tier2",
-                    email: "demo.tier2@erp.local",
+                    email: "demo.tier2@stoknet.local",
                     password: "Test123!",
                     role: AppRoles.Tier2,
                     tenantId: demoTier2Tenant.Id,
@@ -89,7 +89,7 @@ public static class DevelopmentDataSeeder
                 await UpsertUserAsync(
                     dbContext, passwordHasher,
                     userName: "demo.tier1",
-                    email: "demo.tier1@erp.local",
+                    email: "demo.tier1@stoknet.local",
                     password: "Test123!",
                     role: AppRoles.Tier1,
                     tenantId: demoTier1Tenant.Id,

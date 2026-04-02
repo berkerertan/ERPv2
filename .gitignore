@@ -364,3 +364,40 @@ FodyWeavers.xsd
 
 ERP_PROJE_YOL_HARITASI.md
 src/ERP.API/wwwroot/downloads/
+
+# ── StokNet: Proje özel ignore ───────────────────────────────────────────────
+
+# Production ortam ayarları — canlı sırlar içerir, asla commit edilmemeli
+appsettings.Production.json
+appsettings.*.Production.json
+
+# Yerel geliştirme araç önbellekleri (build için gerekli değil)
+.tmp/
+.tmpbuild/
+.tmpobj/
+.nuget/
+.dotnet/
+.dotnet-home/
+.appdata/
+.templateengine/
+
+# Oluşturulan API dokümantasyonu (CI/CD ile üretilebilir)
+API_OPENAPI*.json
+
+# İç geliştirici notları (public repoya dahil edilmemeli)
+backend_agent_instructions.md
+FRONTEND_API_ENDPOINT_REHBERI.md
+FRONTEND_API_HANDOFF_v2.md
+
+# Örnek ve test veri dosyaları
+alacaklı-sample.xlsx
+sample-cari-import.xlsx
+örnek-fatura.pdf
+
+# SQLite veritabanları (runtime üretimi)
+*.db
+*.db-shm
+*.db-wal
+
+# Offline paket çıktıları
+*.zip

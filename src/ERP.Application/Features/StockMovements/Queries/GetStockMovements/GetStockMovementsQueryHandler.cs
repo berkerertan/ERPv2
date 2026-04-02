@@ -33,6 +33,11 @@ public sealed class GetStockMovementsQueryHandler(IStockMovementRepository stock
             query = query.Where(x => x.Type == request.Type.Value);
         }
 
+        if (request.Reason.HasValue)
+        {
+            query = query.Where(x => x.Reason == request.Reason.Value);
+        }
+
         if (request.FromUtc.HasValue)
         {
             query = query.Where(x => x.MovementDateUtc >= request.FromUtc.Value);
@@ -58,6 +63,9 @@ public sealed class GetStockMovementsQueryHandler(IStockMovementRepository stock
                 x.WarehouseId,
                 x.ProductId,
                 x.Type,
+                x.Reason,
+                x.ReasonNote,
+                x.ProofImageUrl,
                 x.Quantity,
                 x.UnitPrice,
                 x.MovementDateUtc,

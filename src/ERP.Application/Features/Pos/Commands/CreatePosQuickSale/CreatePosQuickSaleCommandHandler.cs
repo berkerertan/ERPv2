@@ -83,6 +83,7 @@ public sealed class CreatePosQuickSaleCommandHandler(
                 WarehouseId = request.WarehouseId,
                 ProductId = item.Product.Id,
                 Type = StockMovementType.Out,
+                Reason = StockMovementReason.PosSale,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
                 ReferenceNo = order.OrderNo,

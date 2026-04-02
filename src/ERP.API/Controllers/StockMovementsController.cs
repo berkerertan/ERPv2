@@ -1,5 +1,6 @@
 using ERP.API.Common;
 using ERP.API.Contracts.StockMovements;
+using ERP.Application.Abstractions.Media;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
 using ERP.Application.Features.StockMovements.Commands.TransferStock;
@@ -18,7 +19,7 @@ namespace ERP.API.Controllers;
 [ApiController]
 [Route("api/stock-movements")]
 [RequirePolicy("TierUserOrAdmin")]
-public sealed class StockMovementsController(IMediator mediator) : ControllerBase
+public sealed class StockMovementsController(IMediator mediator, IMediaStorageService mediaStorageService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<StockMovementDto>), StatusCodes.Status200OK)]
@@ -27,6 +28,7 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         [FromQuery] Guid? warehouseId,
         [FromQuery] Guid? productId,
         [FromQuery] ERP.Domain.Enums.StockMovementType? type,
+        [FromQuery] ERP.Domain.Enums.StockMovementReason? reason,
         [FromQuery] DateTime? fromUtc,
         [FromQuery] DateTime? toUtc,
         [FromQuery] int page = 1,
@@ -35,7 +37,7 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
         CancellationToken cancellationToken = default)
     {
         var response = await mediator.Send(
-            new GetStockMovementsQuery(q, warehouseId, productId, type, fromUtc, toUtc, page, pageSize, sortDir),
+            new GetStockMovementsQuery(q, warehouseId, productId, type, reason, fromUtc, toUtc, page, pageSize, sortDir),
             cancellationToken);
         return Ok(response);
     }
@@ -76,7 +78,11 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
             request.Type,
             request.Quantity,
             request.UnitPrice,
-            request.ReferenceNo);
+            request.ReferenceNo,
+            request.Reason,
+            request.ReasonNote,
+            request.ProofImageUrl,
+            request.ProofImagePublicId);
 
         var id = await mediator.Send(command, cancellationToken);
         return Created($"/api/stock-movements/{id}", id);
@@ -111,10 +117,77 @@ public sealed class StockMovementsController(IMediator mediator) : ControllerBas
             request.Type,
             request.Quantity,
             request.UnitPrice,
-            request.ReferenceNo);
+            request.ReferenceNo,
+            request.Reason,
+            request.ReasonNote,
+            request.ProofImageUrl,
+            request.ProofImagePublicId);
 
         await mediator.Send(command, cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("proof-upload")]
+    [Consumes("multipart/form-data")]
+    [ProducesResponseType(typeof(StockMovementProofUploadResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+    public async Task<ActionResult<StockMovementProofUploadResponse>> UploadProof(
+        [FromForm] StockMovementProofUploadForm form,
+        CancellationToken cancellationToken = default)
+    {
+        if (!mediaStorageService.IsConfigured)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is not configured.");
+        }
+
+        var file = form.File;
+        if (file is null || file.Length <= 0)
+        {
+            return BadRequest("Proof file is required.");
+        }
+
+        const long maxBytes = 15 * 1024 * 1024;
+        if (file.Length > maxBytes)
+        {
+            return BadRequest("Proof file size cannot exceed 15 MB.");
+        }
+
+        var contentType = file.ContentType?.Trim().ToLowerInvariant() ?? string.Empty;
+        var isSupportedImage = contentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase);
+        var isPdf = string.Equals(contentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+        if (!isSupportedImage && !isPdf)
+        {
+            return BadRequest("Only image and PDF files are supported.");
+        }
+
+        try
+        {
+            await using var stream = file.OpenReadStream();
+            var upload = await mediaStorageService.UploadStockMovementProofAsync(
+                stream,
+                file.FileName,
+                contentType,
+                cancellationToken);
+
+            return Ok(new StockMovementProofUploadResponse(
+                upload.Url,
+                upload.PublicId,
+                upload.Format,
+                upload.Bytes));
+        }
+        catch (InvalidOperationException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is temporarily unavailable.");
+        }
+        catch (HttpRequestException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage is temporarily unavailable.");
+        }
+        catch (TaskCanceledException)
+        {
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, "Cloud media storage request timed out.");
+        }
     }
 
     [HttpDelete("{id:guid}")]

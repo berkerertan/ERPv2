@@ -22,6 +22,11 @@ public sealed class LoginCommandHandler(
             throw new UnauthorizedAccessException("Invalid credentials.");
         }
 
+        if (user.TenantAccountId.HasValue && !user.IsEmailConfirmed)
+        {
+            throw new UnauthorizedAccessException("Email address is not verified. Please verify your email and try again.");
+        }
+
         var tenant = user.TenantAccountId.HasValue
             ? await tenantAccountRepository.GetByIdAsync(user.TenantAccountId.Value, cancellationToken)
             : null;

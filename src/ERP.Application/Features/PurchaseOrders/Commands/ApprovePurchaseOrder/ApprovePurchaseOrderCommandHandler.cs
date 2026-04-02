@@ -32,6 +32,7 @@ public sealed class ApprovePurchaseOrderCommandHandler(
                 WarehouseId = order.WarehouseId,
                 ProductId = item.ProductId,
                 Type = StockMovementType.In,
+                Reason = StockMovementReason.PurchaseApproval,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
                 ReferenceNo = order.OrderNo,

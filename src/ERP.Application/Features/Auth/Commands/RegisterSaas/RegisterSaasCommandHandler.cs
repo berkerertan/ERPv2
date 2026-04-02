@@ -1,8 +1,9 @@
 using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Security;
 using ERP.Application.Common.Exceptions;
 using ERP.Application.Common.Models;
-using ERP.Domain.Constants;
+using ERP.Application.Common.Security;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
 using MediatR;
@@ -15,10 +16,12 @@ public sealed class RegisterSaasCommandHandler(
     ITenantAccountRepository tenantAccountRepository,
     ISubscriptionPlanService subscriptionPlanService,
     IPasswordHasher passwordHasher,
-    IJwtTokenService jwtTokenService)
-    : IRequestHandler<RegisterSaasCommand, AuthResponse>
+    IAccountEmailService accountEmailService)
+    : IRequestHandler<RegisterSaasCommand, UserRegistrationResponse>
 {
-    public async Task<AuthResponse> Handle(RegisterSaasCommand request, CancellationToken cancellationToken)
+    private const int VerificationTokenTtlHours = 24;
+
+    public async Task<UserRegistrationResponse> Handle(RegisterSaasCommand request, CancellationToken cancellationToken)
     {
         if (await userRepository.GetByUserNameAsync(request.UserName, cancellationToken) is not null)
         {
@@ -38,6 +41,7 @@ public sealed class RegisterSaasCommandHandler(
 
         var tenantCode = await GenerateUniqueTenantCodeAsync(request.CompanyName, cancellationToken);
         var now = DateTime.UtcNow;
+        var verificationToken = EmailVerificationTokenCodec.GenerateToken();
 
         var tenant = new TenantAccount
         {
@@ -59,27 +63,15 @@ public sealed class RegisterSaasCommandHandler(
             Email = request.Email.Trim(),
             PasswordHash = passwordHasher.Hash(request.Password),
             Role = planConfig.AssignedRole,
-            RefreshToken = jwtTokenService.GenerateRefreshToken(),
-            RefreshTokenExpiresAtUtc = now.AddDays(7)
+            IsEmailConfirmed = false,
+            EmailVerificationTokenHash = EmailVerificationTokenCodec.HashToken(verificationToken),
+            EmailVerificationTokenExpiresAtUtc = now.AddHours(VerificationTokenTtlHours)
         };
 
         await userRepository.AddAsync(user, cancellationToken);
+        await accountEmailService.SendVerificationEmailAsync(user, verificationToken, cancellationToken);
 
-        var token = jwtTokenService.GenerateAccessToken(user, tenant, planConfig.Features);
-
-        return new AuthResponse(
-            token.AccessToken,
-            user.RefreshToken ?? string.Empty,
-            token.ExpiresAtUtc,
-            user.Role,
-            user.UserName,
-            tenant.Id,
-            tenant.Name,
-            tenant.Plan,
-            tenant.SubscriptionStatus,
-            planConfig.Features,
-            token.ExpiresAtUtc,
-            user.RefreshTokenExpiresAtUtc);
+        return new UserRegistrationResponse(user.Id, user.UserName, user.Role);
     }
 
     private async Task<string> GenerateUniqueTenantCodeAsync(string companyName, CancellationToken cancellationToken)

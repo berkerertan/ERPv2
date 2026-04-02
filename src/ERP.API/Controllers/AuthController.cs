@@ -1,7 +1,9 @@
 using ERP.API.Common;
 using ERP.API.Contracts.Auth;
+using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Security;
 using ERP.Application.Common.Models;
+using ERP.Application.Common.Security;
 using ERP.Application.Features.Auth.Commands.BootstrapAdmin;
 using ERP.Application.Features.Auth.Commands.Login;
 using ERP.Application.Features.Auth.Commands.Register;
@@ -14,6 +16,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 using System.Security.Cryptography;
@@ -27,8 +30,12 @@ public sealed class AuthController(
     ISubscriptionPlanService subscriptionPlanService,
     IJwtTokenService jwtTokenService,
     IPasswordHasher passwordHasher,
+    IAccountEmailService accountEmailService,
+    IOptions<EmailVerificationOptions> emailVerificationOptions,
     ErpDbContext dbContext) : ControllerBase
 {
+    private readonly EmailVerificationOptions verificationOptions = emailVerificationOptions.Value;
+
     [AllowAnonymous]
     [HttpGet("subscription-plans")]
     [ProducesResponseType(typeof(IReadOnlyList<SubscriptionPlanOptionDto>), StatusCodes.Status200OK)]
@@ -79,8 +86,8 @@ public sealed class AuthController(
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
     [HttpPost("register-saas")]
-    [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
-    public async Task<ActionResult<AuthResponse>> RegisterSaas(
+    [ProducesResponseType(typeof(UserRegistrationResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<UserRegistrationResponse>> RegisterSaas(
         [FromBody] RegisterSaasRequest request,
         CancellationToken cancellationToken)
     {
@@ -97,6 +104,76 @@ public sealed class AuthController(
 
     [AllowAnonymous]
     [EnableRateLimiting("auth")]
+    [HttpPost("confirm-email")]
+    [ProducesResponseType(typeof(ConfirmEmailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ConfirmEmailResponse), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ConfirmEmailResponse>> ConfirmEmail(
+        [FromBody] ConfirmEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var normalizedToken = (request.Token ?? string.Empty).Trim();
+
+        if (string.IsNullOrWhiteSpace(normalizedEmail) || string.IsNullOrWhiteSpace(normalizedToken))
+        {
+            return BadRequest("Email and token are required.");
+        }
+
+        var user = await dbContext.Users.FirstOrDefaultAsync(
+            x => x.Email.ToLower() == normalizedEmail,
+            cancellationToken);
+
+        if (user is null)
+        {
+            return NotFound("User was not found.");
+        }
+
+        if (user.IsEmailConfirmed)
+        {
+            return Ok(new ConfirmEmailResponse(true, "Email is already verified."));
+        }
+
+        if (user.EmailVerificationTokenExpiresAtUtc is null || user.EmailVerificationTokenExpiresAtUtc <= DateTime.UtcNow)
+        {
+            if (!request.ResendOnExpired)
+            {
+                return BadRequest(new ConfirmEmailResponse(
+                    false,
+                    "Verification link has expired. Please request a new verification email.",
+                    IsExpired: true));
+            }
+
+            var resendResult = await ResendVerificationEmailForUserAsync(user, normalizedEmail, cancellationToken);
+            return Ok(new ConfirmEmailResponse(
+                false,
+                resendResult.Message,
+                IsExpired: true,
+                ResendTriggered: true,
+                ResendSent: resendResult.IsSent,
+                ResendRateLimited: resendResult.IsRateLimited,
+                RetryAfterSeconds: resendResult.RetryAfterSeconds));
+        }
+
+        var tokenHash = EmailVerificationTokenCodec.HashToken(normalizedToken);
+        if (!string.Equals(user.EmailVerificationTokenHash, tokenHash, StringComparison.Ordinal))
+        {
+            return BadRequest("Verification token is invalid.");
+        }
+
+        user.IsEmailConfirmed = true;
+        user.EmailConfirmedAtUtc = DateTime.UtcNow;
+        user.EmailVerificationTokenHash = null;
+        user.EmailVerificationTokenExpiresAtUtc = null;
+        user.UpdatedAtUtc = DateTime.UtcNow;
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        return Ok(new ConfirmEmailResponse(true, "Email has been verified successfully."));
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
     [HttpPost("login")]
     [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
     public async Task<ActionResult<AuthResponse>> Login(
@@ -106,6 +183,40 @@ public sealed class AuthController(
         var command = new LoginCommand(request.UserName, request.Password);
         var response = await mediator.Send(command, cancellationToken);
         return Ok(response);
+    }
+
+    [AllowAnonymous]
+    [EnableRateLimiting("auth")]
+    [HttpPost("resend-verification-email")]
+    [ProducesResponseType(typeof(ResendVerificationEmailResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ResendVerificationEmailResponse>> ResendVerificationEmail(
+        [FromBody] ResendVerificationEmailRequest request,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var dailyLimit = Math.Clamp(verificationOptions.DailyResendLimit, 1, 50);
+        if (string.IsNullOrWhiteSpace(normalizedEmail))
+        {
+            return BadRequest("Email is required.");
+        }
+
+        var user = await dbContext.Users.FirstOrDefaultAsync(
+            x => x.Email.ToLower() == normalizedEmail,
+            cancellationToken);
+
+        if (user is null)
+        {
+            return Ok(new ResendVerificationEmailResponse(
+                true,
+                "If an account exists for this email, a new verification email has been sent.",
+                IsRateLimited: false,
+                RetryAfterSeconds: null,
+                RemainingDailyQuota: dailyLimit));
+        }
+
+        var result = await ResendVerificationEmailForUserAsync(user, normalizedEmail, cancellationToken);
+        return Ok(result);
     }
 
     [AllowAnonymous]
@@ -126,6 +237,11 @@ public sealed class AuthController(
         if (user is null || user.RefreshTokenExpiresAtUtc is null || user.RefreshTokenExpiresAtUtc <= DateTime.UtcNow)
         {
             return Unauthorized("Refresh token is invalid or expired.");
+        }
+
+        if (user.TenantAccountId.HasValue && !user.IsEmailConfirmed)
+        {
+            return Unauthorized("Email address is not verified.");
         }
 
         var tenant = user.TenantAccountId.HasValue
@@ -418,7 +534,7 @@ public sealed class AuthController(
         user.UpdatedAtUtc = DateTime.UtcNow;
         await dbContext.SaveChangesAsync(cancellationToken);
 
-        var issuer = "ERPv2";
+        var issuer = "StokNet";
         var qrCodeUri = $"otpauth://totp/{Uri.EscapeDataString(issuer)}:{Uri.EscapeDataString(user.Email)}?secret={sharedKey}&issuer={Uri.EscapeDataString(issuer)}&digits=6";
 
         return Ok(new TwoFactorSetupResponse(sharedKey, qrCodeUri));
@@ -604,6 +720,122 @@ public sealed class AuthController(
        Private Helpers
     ═══════════════════════════════════════════════════════════════ */
 
+    private async Task<ResendVerificationEmailResponse> ResendVerificationEmailForUserAsync(
+        AppUser user,
+        string normalizedEmail,
+        CancellationToken cancellationToken)
+    {
+        var dailyLimit = Math.Clamp(verificationOptions.DailyResendLimit, 1, 50);
+        var cooldownSeconds = Math.Max(0, verificationOptions.ResendCooldownSeconds);
+        var tokenTtlHours = Math.Clamp(verificationOptions.TokenTtlHours, 1, 168);
+
+        if (user.IsEmailConfirmed)
+        {
+            return new ResendVerificationEmailResponse(
+                false,
+                "This email is already verified.",
+                IsRateLimited: false,
+                RetryAfterSeconds: null,
+                RemainingDailyQuota: dailyLimit);
+        }
+
+        var now = DateTime.UtcNow;
+        var startOfDayUtc = now.Date;
+        var attemptLogs = await dbContext.PlatformEmailDispatchLogs
+            .AsNoTracking()
+            .Where(x =>
+                x.TemplateKey == EmailTemplateKeys.AccountVerification &&
+                x.RecipientEmail == normalizedEmail &&
+                x.AttemptedAtUtc >= startOfDayUtc &&
+                x.Status != "RateLimited")
+            .OrderByDescending(x => x.AttemptedAtUtc)
+            .Select(x => x.AttemptedAtUtc)
+            .ToListAsync(cancellationToken);
+
+        var sentTodayCount = attemptLogs.Count;
+        if (sentTodayCount >= dailyLimit)
+        {
+            var retryAfterSeconds = (int)Math.Max(1, Math.Ceiling((startOfDayUtc.AddDays(1) - now).TotalSeconds));
+            await LogVerificationDispatchRateLimitedAsync(user, normalizedEmail, "Daily limit exceeded.", cancellationToken);
+
+            return new ResendVerificationEmailResponse(
+                false,
+                "Daily verification email limit reached. Please try again tomorrow.",
+                IsRateLimited: true,
+                RetryAfterSeconds: retryAfterSeconds,
+                RemainingDailyQuota: 0);
+        }
+
+        var latestAttemptAtUtc = attemptLogs.FirstOrDefault();
+        if (latestAttemptAtUtc != default)
+        {
+            var elapsedSeconds = (int)(now - latestAttemptAtUtc).TotalSeconds;
+            if (elapsedSeconds < cooldownSeconds)
+            {
+                var retryAfterSeconds = Math.Max(1, cooldownSeconds - elapsedSeconds);
+                await LogVerificationDispatchRateLimitedAsync(user, normalizedEmail, "Cooldown active.", cancellationToken);
+
+                return new ResendVerificationEmailResponse(
+                    false,
+                    "Please wait before requesting another verification email.",
+                    IsRateLimited: true,
+                    RetryAfterSeconds: retryAfterSeconds,
+                    RemainingDailyQuota: dailyLimit - sentTodayCount);
+            }
+        }
+
+        var token = EmailVerificationTokenCodec.GenerateToken();
+        user.EmailVerificationTokenHash = EmailVerificationTokenCodec.HashToken(token);
+        user.EmailVerificationTokenExpiresAtUtc = now.AddHours(tokenTtlHours);
+        user.UpdatedAtUtc = now;
+        await dbContext.SaveChangesAsync(cancellationToken);
+
+        var sendResult = await accountEmailService.SendVerificationEmailAsync(user, token, cancellationToken);
+        var remainingDailyQuota = Math.Max(0, dailyLimit - (sentTodayCount + 1));
+        var message = sendResult.IsSuccess
+            ? "Verification email has been sent."
+            : sendResult.IsSkipped
+                ? "Email service is disabled in this environment."
+                : $"Verification email could not be sent: {sendResult.Message}";
+
+        return new ResendVerificationEmailResponse(
+            sendResult.IsSuccess || sendResult.IsSkipped,
+            message,
+            IsRateLimited: false,
+            RetryAfterSeconds: null,
+            RemainingDailyQuota: remainingDailyQuota);
+    }
+
+    private async Task LogVerificationDispatchRateLimitedAsync(
+        AppUser user,
+        string normalizedEmail,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        dbContext.PlatformEmailDispatchLogs.Add(new PlatformEmailDispatchLog
+        {
+            CampaignId = null,
+            TenantAccountId = user.TenantAccountId,
+            TenantCode = null,
+            TenantName = null,
+            TemplateKey = EmailTemplateKeys.AccountVerification,
+            RecipientEmail = normalizedEmail,
+            Subject = "Verification email resend",
+            Body = string.Empty,
+            Status = "RateLimited",
+            ProviderMessage = reason,
+            AttemptedAtUtc = DateTime.UtcNow,
+            SentAtUtc = null,
+            TriggeredByUserId = user.Id,
+            TriggeredByUserName = user.UserName
+        });
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    private static string NormalizeEmail(string email)
+        => (email ?? string.Empty).Trim().ToLowerInvariant();
+
     private Guid? GetCurrentUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
@@ -635,10 +867,10 @@ public sealed class AuthController(
             || string.Equals(userName, "demo", StringComparison.OrdinalIgnoreCase)
             || string.Equals(userName, "demo.tier1", StringComparison.OrdinalIgnoreCase)
             || string.Equals(userName, "demo.tier2", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(email, "platform.admin@erp.local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(email, "demo@erp.local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(email, "demo.tier1@erp.local", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(email, "demo.tier2@erp.local", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(email, "platform.admin@stoknet.local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(email, "demo@stoknet.local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(email, "demo.tier1@stoknet.local", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(email, "demo.tier2@stoknet.local", StringComparison.OrdinalIgnoreCase);
     }
 
     /* ─── TOTP Helpers ──────────────────────────────────────────── */

@@ -68,10 +68,13 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasIndex(x => x.UserName).IsUnique().HasFilter("[IsDeleted] = 0");
             builder.HasIndex(x => x.Email).IsUnique().HasFilter("[IsDeleted] = 0");
             builder.HasIndex(x => x.TenantAccountId);
+            builder.HasIndex(x => x.EmailVerificationTokenHash).HasFilter("[IsDeleted] = 0 AND [EmailVerificationTokenHash] IS NOT NULL");
             builder.Property(x => x.UserName).HasMaxLength(50).IsRequired();
             builder.Property(x => x.Email).HasMaxLength(100).IsRequired();
             builder.Property(x => x.Role).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.IsEmailConfirmed).HasDefaultValue(true);
             builder.Property(x => x.TwoFactorSecretKey).HasMaxLength(200);
+            builder.Property(x => x.EmailVerificationTokenHash).HasMaxLength(128);
             builder.HasOne<TenantAccount>()
                 .WithMany()
                 .HasForeignKey(x => x.TenantAccountId)
@@ -480,6 +483,9 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.Property(x => x.Quantity).HasPrecision(18, 3);
             builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
             builder.Property(x => x.ReferenceNo).HasMaxLength(50);
+            builder.Property(x => x.ReasonNote).HasMaxLength(500);
+            builder.Property(x => x.ProofImageUrl).HasMaxLength(1000);
+            builder.Property(x => x.ProofImagePublicId).HasMaxLength(300);
             builder.HasOne<Warehouse>()
                 .WithMany()
                 .HasForeignKey(x => x.WarehouseId)

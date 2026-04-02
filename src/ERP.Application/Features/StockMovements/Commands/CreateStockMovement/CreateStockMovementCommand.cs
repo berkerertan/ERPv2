@@ -9,4 +9,8 @@ public sealed record CreateStockMovementCommand(
     StockMovementType Type,
     decimal Quantity,
     decimal UnitPrice,
-    string? ReferenceNo) : IRequest<Guid>;
+    string? ReferenceNo,
+    StockMovementReason? Reason = null,
+    string? ReasonNote = null,
+    string? ProofImageUrl = null,
+    string? ProofImagePublicId = null) : IRequest<Guid>;

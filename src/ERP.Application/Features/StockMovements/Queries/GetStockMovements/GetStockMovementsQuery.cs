@@ -8,6 +8,7 @@ public sealed record GetStockMovementsQuery(
     Guid? WarehouseId = null,
     Guid? ProductId = null,
     StockMovementType? Type = null,
+    StockMovementReason? Reason = null,
     DateTime? FromUtc = null,
     DateTime? ToUtc = null,
     int Page = 1,

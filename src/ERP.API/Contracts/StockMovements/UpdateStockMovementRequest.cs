@@ -8,4 +8,8 @@ public sealed record UpdateStockMovementRequest(
     StockMovementType Type,
     decimal Quantity,
     decimal UnitPrice,
-    string? ReferenceNo);
+    string? ReferenceNo,
+    StockMovementReason? Reason,
+    string? ReasonNote,
+    string? ProofImageUrl,
+    string? ProofImagePublicId);

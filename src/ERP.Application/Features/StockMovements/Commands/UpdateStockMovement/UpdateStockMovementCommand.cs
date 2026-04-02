@@ -10,4 +10,8 @@ public sealed record UpdateStockMovementCommand(
     StockMovementType Type,
     decimal Quantity,
     decimal UnitPrice,
-    string? ReferenceNo) : IRequest;
+    string? ReferenceNo,
+    StockMovementReason? Reason = null,
+    string? ReasonNote = null,
+    string? ProofImageUrl = null,
+    string? ProofImagePublicId = null) : IRequest;

@@ -4,7 +4,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace ERP.API.IntegrationTests;
 
-public sealed class ErpApiWebApplicationFactory(bool enforceAuthorization) : WebApplicationFactory<Program>
+public sealed class ErpApiWebApplicationFactory(
+    bool enforceAuthorization,
+    IReadOnlyDictionary<string, string?>? additionalSettings = null) : WebApplicationFactory<Program>
 {
     private readonly string _databaseName = $"ERPv2Test_{Guid.NewGuid():N}";
 
@@ -24,8 +26,17 @@ public sealed class ErpApiWebApplicationFactory(bool enforceAuthorization) : Web
                 ["Cloudinary:Enabled"] = "false",
                 ["Cloudinary:CloudName"] = "",
                 ["Cloudinary:ApiKey"] = "",
-                ["Cloudinary:ApiSecret"] = ""
+                ["Cloudinary:ApiSecret"] = "",
+                ["Smtp:Enabled"] = "false"
             };
+
+            if (additionalSettings is not null)
+            {
+                foreach (var setting in additionalSettings)
+                {
+                    testSettings[setting.Key] = setting.Value;
+                }
+            }
 
             configBuilder.AddInMemoryCollection(testSettings);
         });

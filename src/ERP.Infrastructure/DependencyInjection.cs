@@ -26,6 +26,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.Configure<JwtOptions>(configuration.GetSection(JwtOptions.SectionName));
         services.Configure<SmtpOptions>(configuration.GetSection(SmtpOptions.SectionName));
+        services.Configure<AccountEmailOptions>(configuration.GetSection(AccountEmailOptions.SectionName));
         services.Configure<CloudinaryOptions>(configuration.GetSection(CloudinaryOptions.SectionName));
         services.Configure<GeminiOptions>(configuration.GetSection(GeminiOptions.SectionName));
         services.Configure<ClaudeOptions>(configuration.GetSection(ClaudeOptions.SectionName));
@@ -34,7 +35,7 @@ public static class DependencyInjection
         var configuredConnectionString = configuration.GetConnectionString("DefaultConnection");
         var sqlitePath = configuration["Database:SqlitePath"];
         var defaultSqlServerConnection =
-            "Server=(localdb)\\MSSQLLocalDB;Database=ERPv2Db;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
+            "Server=(localdb)\\MSSQLLocalDB;Database=StokNetDb;Trusted_Connection=True;TrustServerCertificate=True;MultipleActiveResultSets=true";
         if (string.Equals(provider, "Sqlite", StringComparison.OrdinalIgnoreCase))
         {
             var sqliteConnectionString = BuildSqliteConnectionString(configuredConnectionString, sqlitePath);
@@ -69,6 +70,7 @@ public static class DependencyInjection
         services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
+        services.AddScoped<IAccountEmailService, AccountEmailService>();
         services.AddScoped<IMediaStorageService, CloudinaryMediaStorageService>();
         services.AddHttpClient<IDocumentScannerService, GeminiDocumentScannerService>((serviceProvider, client) =>
         {
@@ -133,7 +135,7 @@ public static class DependencyInjection
         var appBaseDirectory = ResolveExecutableDirectory();
         if (string.IsNullOrWhiteSpace(sqlitePath))
         {
-            sqlitePath = Path.Combine("data", "erpv2-offline.db");
+            sqlitePath = Path.Combine("data", "stoknet-offline.db");
         }
 
         var targetPath = sqlitePath.Trim();

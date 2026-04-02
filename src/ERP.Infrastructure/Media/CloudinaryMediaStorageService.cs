@@ -62,6 +62,85 @@ public sealed class CloudinaryMediaStorageService(IOptions<CloudinaryOptions> op
             uploadResult.Bytes);
     }
 
+    public async Task<MediaUploadResult> UploadStockMovementProofAsync(
+        Stream stream,
+        string fileName,
+        string contentType,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsConfigured)
+        {
+            throw new InvalidOperationException("Cloudinary is not configured.");
+        }
+
+        var cloudinary = CreateClient();
+        var normalizedContentType = (contentType ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (normalizedContentType.StartsWith("image/", StringComparison.OrdinalIgnoreCase))
+        {
+            var imageParams = new ImageUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = _options.StockMovementProofFolder,
+                UseFilename = true,
+                UniqueFilename = true,
+                Overwrite = false
+            };
+
+            var imageResult = await cloudinary.UploadAsync(imageParams);
+            if (imageResult.Error is not null)
+            {
+                throw new InvalidOperationException(imageResult.Error.Message);
+            }
+
+            if (string.IsNullOrWhiteSpace(imageResult.SecureUrl?.AbsoluteUri) || string.IsNullOrWhiteSpace(imageResult.PublicId))
+            {
+                throw new InvalidOperationException("Cloudinary upload did not return URL/public id.");
+            }
+
+            return new MediaUploadResult(
+                imageResult.SecureUrl.AbsoluteUri,
+                imageResult.PublicId,
+                imageResult.Format,
+                imageResult.Width,
+                imageResult.Height,
+                imageResult.Bytes);
+        }
+
+        if (string.Equals(normalizedContentType, "application/pdf", StringComparison.OrdinalIgnoreCase))
+        {
+            var rawParams = new RawUploadParams
+            {
+                File = new FileDescription(fileName, stream),
+                Folder = _options.StockMovementProofFolder,
+                UseFilename = true,
+                UniqueFilename = true,
+                Overwrite = false
+            };
+
+            var rawResult = await cloudinary.UploadAsync(rawParams);
+            if (rawResult.Error is not null)
+            {
+                throw new InvalidOperationException(rawResult.Error.Message);
+            }
+
+            if (string.IsNullOrWhiteSpace(rawResult.SecureUrl?.AbsoluteUri) || string.IsNullOrWhiteSpace(rawResult.PublicId))
+            {
+                throw new InvalidOperationException("Cloudinary upload did not return URL/public id.");
+            }
+
+            return new MediaUploadResult(
+                rawResult.SecureUrl.AbsoluteUri,
+                rawResult.PublicId,
+                rawResult.Format,
+                null,
+                null,
+                rawResult.Bytes);
+        }
+
+        throw new InvalidOperationException("Unsupported proof content type.");
+    }
+
     public async Task DeleteByPublicIdAsync(string publicId, CancellationToken cancellationToken = default)
     {
         if (!IsConfigured || string.IsNullOrWhiteSpace(publicId))

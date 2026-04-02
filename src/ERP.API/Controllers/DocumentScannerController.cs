@@ -246,7 +246,8 @@ public sealed class DocumentScannerController(
                     StockMovementType.In,
                     item.Quantity,
                     item.UnitPrice,
-                    referenceNo),
+                    referenceNo,
+                    StockMovementReason.InventoryAdjustment),
                 cancellationToken);
 
             createdMovementIds.Add(movementId);

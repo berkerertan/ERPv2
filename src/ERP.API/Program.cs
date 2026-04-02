@@ -24,6 +24,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 
 builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(SecurityOptions.SectionName));
+builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection(EmailVerificationOptions.SectionName));
 builder.Services.Configure<TenantResolutionOptions>(builder.Configuration.GetSection(TenantResolutionOptions.SectionName));
 builder.Services.Configure<EmailCampaignOptions>(builder.Configuration.GetSection(EmailCampaignOptions.SectionName));
 
@@ -57,7 +58,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "ERPv2 API",
+        Title = "StokNet API",
         Version = "v1",
         Description = "ERP foundation API with Clean Architecture + CQRS"
     });
@@ -153,6 +154,7 @@ if (securityOptions.EnforceAuthorization)
 }
 
 app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseMiddleware<VerifiedEmailGuardMiddleware>();
 
 if (securityOptions.EnforceAuthorization)
 {
@@ -178,7 +180,7 @@ else
 {
     app.MapGet("/", () => Results.Ok(new
     {
-        service = "ERPv2 API",
+        service = "StokNet API",
         environment = app.Environment.EnvironmentName,
         docs = app.Environment.IsDevelopment() ? "/swagger" : null
     })).AllowAnonymous();

@@ -45,6 +45,7 @@ public sealed class ApproveSalesOrderCommandHandler(
                 WarehouseId = order.WarehouseId,
                 ProductId = item.ProductId,
                 Type = StockMovementType.Out,
+                Reason = StockMovementReason.SalesApproval,
                 Quantity = item.Quantity,
                 UnitPrice = item.UnitPrice,
                 ReferenceNo = order.OrderNo,

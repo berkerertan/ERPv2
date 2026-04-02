@@ -9,4 +9,4 @@ public sealed record RegisterSaasCommand(
     string Email,
     string Password,
     string CompanyName,
-    SubscriptionPlan Plan) : IRequest<AuthResponse>;
+    SubscriptionPlan Plan) : IRequest<UserRegistrationResponse>;

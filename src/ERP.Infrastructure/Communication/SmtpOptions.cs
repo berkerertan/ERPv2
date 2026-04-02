@@ -10,6 +10,6 @@ public sealed class SmtpOptions
     public bool UseSsl { get; init; } = true;
     public string UserName { get; init; } = string.Empty;
     public string Password { get; init; } = string.Empty;
-    public string FromEmail { get; init; } = "no-reply@erp.local";
-    public string FromName { get; init; } = "ERP Platform";
+    public string FromEmail { get; init; } = "no-reply@stoknet.local";
+    public string FromName { get; init; } = "StokNet";
 }
