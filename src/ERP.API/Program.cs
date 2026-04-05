@@ -13,6 +13,8 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading.RateLimiting;
 
+AppContext.SetSwitch("Switch.Microsoft.Data.SqlClient.UseManagedNetworkingOnWindows", true);
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
