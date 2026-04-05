@@ -118,8 +118,10 @@ builder.Services.AddAuthorization(options =>
 
 var app = builder.Build();
 var securityOptions = builder.Configuration.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() ?? new SecurityOptions();
+var autoMigrateOnStartup = builder.Configuration.GetValue("Database:AutoMigrateOnStartup", true);
+var failFastOnMigrationError = builder.Configuration.GetValue("Database:FailFastOnMigrationError", app.Environment.IsDevelopment());
 
-await EnsureDatabaseMigratedAsync(app);
+await EnsureDatabaseMigratedAsync(app, autoMigrateOnStartup, failFastOnMigrationError);
 await DevelopmentDataSeeder.SeedAsync(app);
 await SubscriptionRoleSynchronization.ApplyAsync(app);
 
@@ -226,16 +228,33 @@ static string ResolveExecutableDirectory()
     return AppContext.BaseDirectory;
 }
 
-static async Task EnsureDatabaseMigratedAsync(WebApplication app)
+static async Task EnsureDatabaseMigratedAsync(WebApplication app, bool autoMigrateOnStartup, bool failFastOnMigrationError)
 {
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
-    var providerName = dbContext.Database.ProviderName ?? string.Empty;
-    if (providerName.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+    if (!autoMigrateOnStartup)
     {
-        await dbContext.Database.EnsureCreatedAsync();
         return;
     }
 
-    await dbContext.Database.MigrateAsync();
+    using var scope = app.Services.CreateScope();
+    var dbContext = scope.ServiceProvider.GetRequiredService<ErpDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartupDatabase");
+    var providerName = dbContext.Database.ProviderName ?? string.Empty;
+    try
+    {
+        if (providerName.Contains("Sqlite", StringComparison.OrdinalIgnoreCase))
+        {
+            await dbContext.Database.EnsureCreatedAsync();
+            return;
+        }
+
+        await dbContext.Database.MigrateAsync();
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Database initialization failed during startup.");
+        if (failFastOnMigrationError)
+        {
+            throw;
+        }
+    }
 }

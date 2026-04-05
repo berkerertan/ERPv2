@@ -44,8 +44,24 @@ public static class DependencyInjection
         }
         else
         {
+            var sqlServerConnectionString = ResolveSqlServerConnectionString(configuration, configuredConnectionString);
+            var environmentName = configuration["ASPNETCORE_ENVIRONMENT"] ?? configuration["DOTNET_ENVIRONMENT"];
+            var isDevelopment = string.Equals(environmentName, "Development", StringComparison.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(sqlServerConnectionString))
+            {
+                if (isDevelopment)
+                {
+                    sqlServerConnectionString = defaultSqlServerConnection;
+                }
+                else
+                {
+                    throw new InvalidOperationException(
+                        "SQL Server connection string is missing. Set 'ConnectionStrings__DefaultConnection' app setting or 'DefaultConnection' in Azure Connection Strings.");
+                }
+            }
+
             services.AddDbContext<ErpDbContext>(options =>
-                options.UseSqlServer(SelectConnectionString(configuredConnectionString, defaultSqlServerConnection)));
+                options.UseSqlServer(sqlServerConnectionString));
         }
 
         services.AddScoped<ICurrentTenantService, CurrentTenantService>();
@@ -86,11 +102,43 @@ public static class DependencyInjection
         return services;
     }
 
-    private static string SelectConnectionString(string? configuredConnectionString, string fallbackConnectionString)
+    private static string? ResolveSqlServerConnectionString(IConfiguration configuration, string? configuredConnectionString)
     {
-        return string.IsNullOrWhiteSpace(configuredConnectionString)
-            ? fallbackConnectionString
-            : configuredConnectionString;
+        if (IsUsableConnectionString(configuredConnectionString))
+        {
+            return configuredConnectionString;
+        }
+
+        var candidates = new[]
+        {
+            configuration["ConnectionStrings:DefaultConnection"],
+            configuration["ConnectionStrings__DefaultConnection"],
+            configuration["SQLAZURECONNSTR_DefaultConnection"],
+            configuration["SQLCONNSTR_DefaultConnection"],
+            configuration["CUSTOMCONNSTR_DefaultConnection"],
+            configuration["DefaultConnection"],
+            configuration["STOKNET_CONNECTION"]
+        };
+
+        foreach (var candidate in candidates)
+        {
+            if (IsUsableConnectionString(candidate))
+            {
+                return candidate;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool IsUsableConnectionString(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        return !value.StartsWith("REPLACE_WITH_", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string BuildSqliteConnectionString(string? configuredConnectionString, string? sqlitePath)
