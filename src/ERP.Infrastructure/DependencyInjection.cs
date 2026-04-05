@@ -121,13 +121,13 @@ public static class DependencyInjection
     {
         var candidates = new[]
         {
-            configuration["ConnectionStrings:DefaultConnection"],
             configuration["ConnectionStrings__DefaultConnection"],
             configuration["SQLAZURECONNSTR_DefaultConnection"],
             configuration["SQLCONNSTR_DefaultConnection"],
             configuration["CUSTOMCONNSTR_DefaultConnection"],
             configuration["DefaultConnection"],
-            configuration["STOKNET_CONNECTION"]
+            configuration["STOKNET_CONNECTION"],
+            configuration["ConnectionStrings:DefaultConnection"]
         };
 
         foreach (var candidate in candidates)
