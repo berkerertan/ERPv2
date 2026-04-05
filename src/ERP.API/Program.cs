@@ -27,14 +27,35 @@ builder.Services.Configure<SecurityOptions>(builder.Configuration.GetSection(Sec
 builder.Services.Configure<EmailVerificationOptions>(builder.Configuration.GetSection(EmailVerificationOptions.SectionName));
 builder.Services.Configure<TenantResolutionOptions>(builder.Configuration.GetSection(TenantResolutionOptions.SectionName));
 builder.Services.Configure<EmailCampaignOptions>(builder.Configuration.GetSection(EmailCampaignOptions.SectionName));
+var corsAllowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("DevCors", policy =>
-        policy.WithOrigins("http://localhost:4200", "https://localhost:4200")
-              .AllowAnyHeader()
+    options.AddPolicy("AppCors", policy =>
+    {
+        policy.AllowAnyHeader()
               .AllowAnyMethod()
-              .AllowCredentials());
+              .SetIsOriginAllowed(origin =>
+              {
+                  if (string.IsNullOrWhiteSpace(origin))
+                  {
+                      return false;
+                  }
+
+                  if (corsAllowedOrigins.Any(allowed =>
+                          string.Equals(allowed, origin, StringComparison.OrdinalIgnoreCase)))
+                  {
+                      return true;
+                  }
+
+                  if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                  {
+                      return false;
+                  }
+
+                  return uri.Host.EndsWith(".vercel.app", StringComparison.OrdinalIgnoreCase);
+              });
+    });
 });
 
 builder.Services.AddRateLimiter(options =>
@@ -140,7 +161,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseExceptionHandler();
-app.UseCors("DevCors");
+app.UseCors("AppCors");
 app.UseRateLimiter();
 app.UseDefaultFiles();
 app.UseStaticFiles();

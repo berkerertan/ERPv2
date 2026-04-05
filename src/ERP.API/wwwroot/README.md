@@ -23,6 +23,8 @@ This enables direct navigation to client routes in production.
 - No separate Node runtime is required at API runtime
 - Deploying backend with Docker also deploys these frontend assets
 - Keep bundle and API version aligned when publishing
+- For Vercel static hosting, set project root to `src/ERP.API/wwwroot`
+- `vercel.json` is included to support SPA route fallback to `index.html`
 
 ## How to Update Frontend Assets
 1. Build frontend in its source repository/workspace.
@@ -33,6 +35,7 @@ This enables direct navigation to client routes in production.
 ## Environment and API Connectivity
 - Frontend should target the same host where `ERP.API` is published, unless proxy/gateway is configured
 - CORS and auth settings are managed by backend configuration
+- Current bundle API base URL is configured in `chunk-NWVCUJ5O.js` (`apiUrl`)
 
 ## Validation Checklist
 - Open `/` and confirm UI loads

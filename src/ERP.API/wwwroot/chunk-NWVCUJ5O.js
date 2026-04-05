@@ -1,1 +1,1 @@
-var e={production:!1,apiUrl:"",appName:"ERPv2",googleClientId:"YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",githubClientId:"YOUR_GITHUB_CLIENT_ID"};export{e as a};
+var e={production:!0,apiUrl:"https://stoknet-bsdkhtd6g4hkhub8.westeurope-01.azurewebsites.net",appName:"ERPv2",googleClientId:"YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",githubClientId:"YOUR_GITHUB_CLIENT_ID"};export{e as a};
