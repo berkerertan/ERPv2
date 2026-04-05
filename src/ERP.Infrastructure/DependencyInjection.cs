@@ -119,11 +119,6 @@ public static class DependencyInjection
 
     private static string? ResolveSqlServerConnectionString(IConfiguration configuration, string? configuredConnectionString)
     {
-        if (IsUsableConnectionString(configuredConnectionString))
-        {
-            return configuredConnectionString;
-        }
-
         var candidates = new[]
         {
             configuration["ConnectionStrings:DefaultConnection"],
@@ -141,6 +136,11 @@ public static class DependencyInjection
             {
                 return candidate;
             }
+        }
+
+        if (IsUsableConnectionString(configuredConnectionString))
+        {
+            return configuredConnectionString;
         }
 
         return null;
