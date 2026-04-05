@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   build-and-deploy:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout
@@ -27,6 +27,11 @@ jobs:
 
       - name: Publish
         run: dotnet publish src/ERP.API/ERP.API.csproj -c Release -r win-x86 --self-contained true -o ./publish /p:UseAppHost=true /p:AspNetCoreHostingModel=OutOfProcess
+
+      - name: Verify SqlClient runtime assets
+        shell: pwsh
+        run: |
+          Get-ChildItem -Path .\publish -Filter *SqlClient* | Select-Object Name,Length | Format-Table -AutoSize
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
