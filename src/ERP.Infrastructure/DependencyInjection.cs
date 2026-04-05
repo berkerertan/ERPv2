@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using System.IO;
+using Microsoft.Data.SqlClient;
 
 namespace ERP.Infrastructure;
 
@@ -60,8 +61,22 @@ public static class DependencyInjection
                 }
             }
 
-            services.AddDbContext<ErpDbContext>(options =>
-                options.UseSqlServer(sqlServerConnectionString));
+            var (effectiveConnectionString, useAzureSqlAccessToken) =
+                NormalizeSqlServerConnectionForTokenAuth(sqlServerConnectionString);
+
+            if (useAzureSqlAccessToken)
+            {
+                services.AddSingleton<AzureSqlAccessTokenInterceptor>();
+            }
+
+            services.AddDbContext<ErpDbContext>((serviceProvider, options) =>
+            {
+                options.UseSqlServer(effectiveConnectionString);
+                if (useAzureSqlAccessToken)
+                {
+                    options.AddInterceptors(serviceProvider.GetRequiredService<AzureSqlAccessTokenInterceptor>());
+                }
+            });
         }
 
         services.AddScoped<ICurrentTenantService, CurrentTenantService>();
@@ -139,6 +154,36 @@ public static class DependencyInjection
         }
 
         return !value.StartsWith("REPLACE_WITH_", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static (string ConnectionString, bool UseAzureSqlAccessToken) NormalizeSqlServerConnectionForTokenAuth(string connectionString)
+    {
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            return (connectionString, false);
+        }
+
+        try
+        {
+            var builder = new SqlConnectionStringBuilder(connectionString);
+            var authentication = builder.Authentication;
+            var requiresAzureToken =
+                authentication == SqlAuthenticationMethod.ActiveDirectoryManagedIdentity ||
+                authentication == SqlAuthenticationMethod.ActiveDirectoryMSI ||
+                authentication == SqlAuthenticationMethod.ActiveDirectoryDefault;
+
+            if (!requiresAzureToken)
+            {
+                return (connectionString, false);
+            }
+
+            builder.Authentication = SqlAuthenticationMethod.NotSpecified;
+            return (builder.ConnectionString, true);
+        }
+        catch
+        {
+            return (connectionString, false);
+        }
     }
 
     private static string BuildSqliteConnectionString(string? configuredConnectionString, string? sqlitePath)
