@@ -122,8 +122,16 @@ var autoMigrateOnStartup = builder.Configuration.GetValue("Database:AutoMigrateO
 var failFastOnMigrationError = builder.Configuration.GetValue("Database:FailFastOnMigrationError", app.Environment.IsDevelopment());
 
 await EnsureDatabaseMigratedAsync(app, autoMigrateOnStartup, failFastOnMigrationError);
-await DevelopmentDataSeeder.SeedAsync(app);
-await SubscriptionRoleSynchronization.ApplyAsync(app);
+await RunStartupStepSafeAsync(
+    app,
+    "DevelopmentDataSeeder",
+    failFastOnMigrationError,
+    ct => DevelopmentDataSeeder.SeedAsync(app, ct));
+await RunStartupStepSafeAsync(
+    app,
+    "SubscriptionRoleSynchronization",
+    failFastOnMigrationError,
+    ct => SubscriptionRoleSynchronization.ApplyAsync(app, ct));
 
 if (app.Environment.IsDevelopment())
 {
@@ -253,6 +261,30 @@ static async Task EnsureDatabaseMigratedAsync(WebApplication app, bool autoMigra
     {
         logger.LogError(ex, "Database initialization failed during startup.");
         if (failFastOnMigrationError)
+        {
+            throw;
+        }
+    }
+}
+
+static async Task RunStartupStepSafeAsync(
+    WebApplication app,
+    string stepName,
+    bool failFastOnError,
+    Func<CancellationToken, Task> action,
+    CancellationToken cancellationToken = default)
+{
+    using var scope = app.Services.CreateScope();
+    var logger = scope.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger("StartupTasks");
+
+    try
+    {
+        await action(cancellationToken);
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "Startup step '{StepName}' failed.", stepName);
+        if (failFastOnError)
         {
             throw;
         }
