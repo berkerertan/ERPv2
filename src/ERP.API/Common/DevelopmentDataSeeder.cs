@@ -603,7 +603,7 @@ public static class DevelopmentDataSeeder
     //  Tenant / User / Plan / Landing helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    private static async Task<TenantAccount> EnsureTenantAsync(
+    internal static async Task<TenantAccount> EnsureTenantAsync(
         ErpDbContext dbContext,
         string name, string code, SubscriptionPlan plan,
         CancellationToken cancellationToken)
@@ -670,7 +670,7 @@ public static class DevelopmentDataSeeder
         return tenant;
     }
 
-    private static async Task<bool> UpsertUserAsync(
+    internal static async Task<bool> UpsertUserAsync(
         ErpDbContext dbContext,
         IPasswordHasher passwordHasher,
         string userName, string email, string password, string role,
@@ -689,6 +689,8 @@ public static class DevelopmentDataSeeder
                 TenantAccountId = tenantId,
                 UserName        = userName,
                 Email           = email,
+                IsEmailConfirmed = true,
+                EmailConfirmedAtUtc = DateTime.UtcNow,
                 PasswordHash    = passwordHasher.Hash(password),
                 Role            = role
             });
@@ -711,6 +713,20 @@ public static class DevelopmentDataSeeder
 
         if (!passwordHasher.Verify(password, existing.PasswordHash))
         { existing.PasswordHash = passwordHasher.Hash(password); changed = true; }
+
+        if (!existing.IsEmailConfirmed)
+        {
+            existing.IsEmailConfirmed = true;
+            existing.EmailConfirmedAtUtc = DateTime.UtcNow;
+            existing.EmailVerificationTokenHash = null;
+            existing.EmailVerificationTokenExpiresAtUtc = null;
+            changed = true;
+        }
+        else if (existing.EmailConfirmedAtUtc is null)
+        {
+            existing.EmailConfirmedAtUtc = DateTime.UtcNow;
+            changed = true;
+        }
 
         if (changed) existing.UpdatedAtUtc = DateTime.UtcNow;
 
@@ -759,7 +775,7 @@ public static class DevelopmentDataSeeder
         await dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    private static async Task EnsureDefaultPlanSettingsAsync(
+    internal static async Task EnsureDefaultPlanSettingsAsync(
         ErpDbContext dbContext, CancellationToken cancellationToken)
     {
         var existingPlans = await dbContext.SubscriptionPlanSettings

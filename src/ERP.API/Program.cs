@@ -152,6 +152,11 @@ await RunStartupStepSafeAsync(
     ct => DevelopmentDataSeeder.SeedAsync(app, ct));
 await RunStartupStepSafeAsync(
     app,
+    "ProductionDemoAccountSeeder",
+    failFastOnMigrationError,
+    ct => ProductionDemoAccountSeeder.SeedAsync(app, ct));
+await RunStartupStepSafeAsync(
+    app,
     "SubscriptionRoleSynchronization",
     failFastOnMigrationError,
     ct => SubscriptionRoleSynchronization.ApplyAsync(app, ct));
