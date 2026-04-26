@@ -26,7 +26,7 @@ jobs:
         run: dotnet restore src/ERP.API/ERP.API.csproj
 
       - name: Publish
-        run: dotnet publish src/ERP.API/ERP.API.csproj -c Release -r win-x86 --self-contained true -o ./publish /p:UseAppHost=true /p:AspNetCoreHostingModel=OutOfProcess
+        run: dotnet publish src/ERP.API/ERP.API.csproj -c Release -o ./publish /p:SelfContained=false /p:UseAppHost=false /p:AspNetCoreHostingModel=OutOfProcess
 
       - name: Verify SqlClient runtime assets
         shell: pwsh
