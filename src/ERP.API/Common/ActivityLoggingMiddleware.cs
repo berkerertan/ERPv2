@@ -1,12 +1,13 @@
 ﻿using ERP.Application.Abstractions.Security;
 using ERP.Domain.Entities;
 using ERP.Infrastructure.Persistence;
+using Microsoft.Extensions.Logging;
 using System.Diagnostics;
 using System.Security.Claims;
 
 namespace ERP.API.Common;
 
-public sealed class ActivityLoggingMiddleware(RequestDelegate next)
+public sealed class ActivityLoggingMiddleware(RequestDelegate next, ILogger<ActivityLoggingMiddleware> logger)
 {
     public async Task InvokeAsync(HttpContext context, ErpDbContext dbContext, ICurrentTenantService currentTenantService)
     {
@@ -50,8 +51,19 @@ public sealed class ActivityLoggingMiddleware(RequestDelegate next)
                 OccurredAtUtc = DateTime.UtcNow
             };
 
-            dbContext.SystemActivityLogs.Add(log);
-            await dbContext.SaveChangesAsync();
+            try
+            {
+                dbContext.SystemActivityLogs.Add(log);
+                await dbContext.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(
+                    ex,
+                    "Activity log persistence failed for {Method} {Path}. Request will continue without audit log.",
+                    context.Request.Method,
+                    path);
+            }
         }
     }
 
