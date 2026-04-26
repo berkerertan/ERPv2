@@ -363,7 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 ERP_PROJE_YOL_HARITASI.md
-src/ERP.API/wwwroot/downloads/
+src/ERP.API/wwwroot/downloads/*`r`n!src/ERP.API/wwwroot/downloads/
 
 # ── StokNet: Proje özel ignore ───────────────────────────────────────────────
 
@@ -401,3 +401,8 @@ sample-cari-import.xlsx
 
 # Offline paket çıktıları
 *.zip
+
+!src/ERP.API/wwwroot/downloads/ERPv2-Offline-Package.zip
+
+src/ERP.API/wwwroot/downloads/ERPv2-Offline.exe
+
