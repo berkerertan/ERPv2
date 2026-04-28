@@ -73,6 +73,95 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
         return Ok(buyers);
     }
 
+    [HttpGet("buyers/risk-summary")]
+    [ProducesResponseType(typeof(BuyerRiskSummaryResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<BuyerRiskSummaryResponse>> GetBuyerRiskSummary(
+        [FromQuery] int limit = 20,
+        CancellationToken cancellationToken = default)
+    {
+        var today = DateTime.UtcNow.Date;
+        var buyerAccounts = await dbContext.CariAccounts
+            .AsNoTracking()
+            .Where(x => x.Type == CariType.BuyerBch || x.Type == CariType.Both)
+            .Select(x => new
+            {
+                x.Id,
+                x.Code,
+                x.Name,
+                x.CurrentBalance,
+                x.RiskLimit,
+                x.MaturityDays
+            })
+            .ToListAsync(cancellationToken);
+
+        var buyerIds = buyerAccounts.Select(x => x.Id).ToList();
+        var debtItems = buyerIds.Count == 0
+            ? []
+            : await dbContext.CariDebtItems
+                .AsNoTracking()
+                .Where(x => buyerIds.Contains(x.CariAccountId) && x.RemainingBalance > 0)
+                .Select(x => new
+                {
+                    x.CariAccountId,
+                    x.TransactionDate,
+                    x.RemainingBalance
+                })
+                .ToListAsync(cancellationToken);
+
+        var items = buyerAccounts
+            .Select(account =>
+            {
+                var thresholdDate = today.AddDays(-(account.MaturityDays > 0 ? account.MaturityDays : 0));
+                var overdueItems = debtItems
+                    .Where(x => x.CariAccountId == account.Id && x.TransactionDate.Date <= thresholdDate)
+                    .ToList();
+
+                var overdueAmount = overdueItems.Sum(x => x.RemainingBalance);
+                var oldestDate = overdueItems.Count > 0
+                    ? overdueItems.Min(x => x.TransactionDate).Date
+                    : (DateTime?)null;
+                var maxOverdueDays = oldestDate.HasValue
+                    ? Math.Max(0, (today - oldestDate.Value).Days)
+                    : 0;
+                var riskUsageRate = account.RiskLimit > 0
+                    ? decimal.Round(account.CurrentBalance / account.RiskLimit, 2, MidpointRounding.AwayFromZero)
+                    : account.CurrentBalance > 0 ? 1m : 0m;
+
+                var severity = overdueAmount > 0 && (riskUsageRate >= 1m || maxOverdueDays >= 30)
+                    ? "critical"
+                    : overdueAmount > 0 || riskUsageRate >= 0.8m
+                        ? "warning"
+                        : "stable";
+
+                return new BuyerRiskSummaryItemDto(
+                    account.Id,
+                    account.Code,
+                    account.Name,
+                    account.CurrentBalance,
+                    account.RiskLimit,
+                    account.MaturityDays,
+                    decimal.Round(overdueAmount, 2, MidpointRounding.AwayFromZero),
+                    maxOverdueDays,
+                    riskUsageRate,
+                    severity);
+            })
+            .OrderByDescending(x => x.Severity == "critical")
+            .ThenByDescending(x => x.OverdueAmount)
+            .ThenByDescending(x => x.RiskUsageRate)
+            .Take(Math.Clamp(limit, 1, 100))
+            .ToList();
+
+        var response = new BuyerRiskSummaryResponse(
+            buyerAccounts.Count,
+            items.Count(x => x.Severity != "stable"),
+            items.Count(x => x.Severity == "critical"),
+            buyerAccounts.Sum(x => x.CurrentBalance),
+            items.Sum(x => x.OverdueAmount),
+            items);
+
+        return Ok(response);
+    }
+
 
     [HttpGet("suggest")]
     [ProducesResponseType(typeof(IReadOnlyList<CariAccountSuggestionDto>), StatusCodes.Status200OK)]

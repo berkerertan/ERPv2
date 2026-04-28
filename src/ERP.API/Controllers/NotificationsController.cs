@@ -1,16 +1,14 @@
 using ERP.API.Common;
 using ERP.API.Contracts.Notifications;
-using ERP.Domain.Entities;
-using ERP.Infrastructure.Persistence;
+using ERP.Application.Abstractions.Notifications;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace ERP.API.Controllers;
 
 [ApiController]
 [Route("api/notifications")]
 [RequirePolicy("TierUserOrAdmin")]
-public sealed class NotificationsController(ErpDbContext dbContext) : ControllerBase
+public sealed class NotificationsController(IUserNotificationService notificationService) : ControllerBase
 {
     [HttpGet]
     [ProducesResponseType(typeof(IReadOnlyList<NotificationDto>), StatusCodes.Status200OK)]
@@ -18,14 +16,9 @@ public sealed class NotificationsController(ErpDbContext dbContext) : Controller
         [FromQuery] bool? isRead,
         CancellationToken cancellationToken)
     {
-        var query = dbContext.UserNotifications.AsNoTracking().AsQueryable();
-        if (isRead.HasValue) query = query.Where(x => x.IsRead == isRead.Value);
-
-        var rows = await query.OrderByDescending(x => x.CreatedAtUtc).ToListAsync(cancellationToken);
-
+        var rows = await notificationService.GetAsync(isRead, cancellationToken);
         var result = rows.Select(x => new NotificationDto(
             x.Id, x.Type, x.Title, x.Message, x.IsRead, x.Link, x.CreatedAtUtc)).ToList();
-
         return Ok(result);
     }
 
@@ -33,12 +26,8 @@ public sealed class NotificationsController(ErpDbContext dbContext) : Controller
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkAsRead(Guid id, CancellationToken cancellationToken)
     {
-        var row = await dbContext.UserNotifications.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (row is null) return NotFound();
-
-        row.IsRead = true;
-        row.UpdatedAtUtc = DateTime.UtcNow;
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var updated = await notificationService.MarkAsReadAsync(id, cancellationToken);
+        if (!updated) return NotFound();
         return NoContent();
     }
 
@@ -46,17 +35,7 @@ public sealed class NotificationsController(ErpDbContext dbContext) : Controller
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> MarkAllAsRead(CancellationToken cancellationToken)
     {
-        var unread = await dbContext.UserNotifications
-            .Where(x => !x.IsRead)
-            .ToListAsync(cancellationToken);
-
-        foreach (var n in unread)
-        {
-            n.IsRead = true;
-            n.UpdatedAtUtc = DateTime.UtcNow;
-        }
-
-        await dbContext.SaveChangesAsync(cancellationToken);
+        await notificationService.MarkAllAsReadAsync(cancellationToken);
         return NoContent();
     }
 
@@ -64,11 +43,8 @@ public sealed class NotificationsController(ErpDbContext dbContext) : Controller
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteNotification(Guid id, CancellationToken cancellationToken)
     {
-        var row = await dbContext.UserNotifications.FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
-        if (row is null) return NotFound();
-
-        row.MarkAsDeleted();
-        await dbContext.SaveChangesAsync(cancellationToken);
+        var deleted = await notificationService.DeleteAsync(id, cancellationToken);
+        if (!deleted) return NotFound();
         return NoContent();
     }
 
@@ -79,17 +55,18 @@ public sealed class NotificationsController(ErpDbContext dbContext) : Controller
         if (string.IsNullOrWhiteSpace(request.Title)) return BadRequest("Title is required.");
         if (string.IsNullOrWhiteSpace(request.Message)) return BadRequest("Message is required.");
 
-        var row = new UserNotification
-        {
-            Type = request.Type.Trim(),
-            Title = request.Title.Trim(),
-            Message = request.Message.Trim(),
-            Link = request.Link?.Trim(),
-            IsRead = false
-        };
+        var row = await notificationService.PublishAsync(
+            request.Type,
+            request.Title,
+            request.Message,
+            request.Link,
+            cancellationToken);
 
-        dbContext.UserNotifications.Add(row);
-        await dbContext.SaveChangesAsync(cancellationToken);
+        if (row is null)
+        {
+            return BadRequest("Notifications require an active tenant context.");
+        }
+
         return Created($"/api/notifications/{row.Id}", row.Id);
     }
 }

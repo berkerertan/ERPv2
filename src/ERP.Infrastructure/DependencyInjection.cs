@@ -102,6 +102,7 @@ public static class DependencyInjection
         services.AddScoped<IJwtTokenService, JwtTokenService>();
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
+        services.AddScoped<IUserNotificationService, UserNotificationService>();
         services.AddScoped<IMediaStorageService, CloudinaryMediaStorageService>();
         services.AddHttpClient<IDocumentScannerService, GeminiDocumentScannerService>((serviceProvider, client) =>
         {

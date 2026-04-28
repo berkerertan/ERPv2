@@ -26,4 +26,19 @@ public sealed class StockMovementRepository : InMemoryRepository<StockMovement>,
             return Task.FromResult(balance);
         }
     }
+
+    public Task AddRangeAsync(IEnumerable<StockMovement> entities, CancellationToken cancellationToken = default)
+    {
+        lock (_store.SyncRoot)
+        {
+            var now = DateTime.UtcNow;
+            foreach (var entity in entities)
+            {
+                entity.CreatedAtUtc = now;
+                Entities.Add(entity);
+            }
+        }
+
+        return Task.CompletedTask;
+    }
 }

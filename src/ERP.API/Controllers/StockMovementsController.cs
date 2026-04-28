@@ -1,6 +1,7 @@
 using ERP.API.Common;
 using ERP.API.Contracts.StockMovements;
 using ERP.Application.Abstractions.Media;
+using ERP.Application.Features.StockMovements.Commands.ApplyInventoryCount;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
 using ERP.Application.Features.StockMovements.Commands.TransferStock;
@@ -86,6 +87,29 @@ public sealed class StockMovementsController(IMediator mediator, IMediaStorageSe
 
         var id = await mediator.Send(command, cancellationToken);
         return Created($"/api/stock-movements/{id}", id);
+    }
+
+    [HttpPost("inventory-count")]
+    [ProducesResponseType(typeof(ApplyInventoryCountResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<ApplyInventoryCountResponse>> ApplyInventoryCount(
+        [FromBody] ApplyInventoryCountRequest request,
+        CancellationToken cancellationToken)
+    {
+        var result = await mediator.Send(
+            new ApplyInventoryCountCommand(
+                request.WarehouseId,
+                request.ReferenceNo,
+                request.Notes,
+                request.Items.Select(x => new ApplyInventoryCountItem(x.ProductId, x.CountedQuantity)).ToList()),
+            cancellationToken);
+
+        return Ok(new ApplyInventoryCountResponse(
+            result.ReferenceNo,
+            result.SubmittedItems,
+            result.AppliedItems,
+            result.SkippedItems,
+            result.TotalIncreaseQuantity,
+            result.TotalDecreaseQuantity));
     }
 
     [HttpPost("transfer")]

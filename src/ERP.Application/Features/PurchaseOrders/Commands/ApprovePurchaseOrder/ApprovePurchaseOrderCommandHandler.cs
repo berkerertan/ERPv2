@@ -1,7 +1,8 @@
-﻿using ERP.Application.Abstractions.Persistence;
+using ERP.Application.Abstractions.Notifications;
+using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
-using ERP.Domain.Enums;
 using ERP.Domain.Entities;
+using ERP.Domain.Enums;
 using MediatR;
 
 namespace ERP.Application.Features.PurchaseOrders.Commands.ApprovePurchaseOrder;
@@ -9,7 +10,8 @@ namespace ERP.Application.Features.PurchaseOrders.Commands.ApprovePurchaseOrder;
 public sealed class ApprovePurchaseOrderCommandHandler(
     IPurchaseOrderRepository purchaseOrderRepository,
     IStockMovementRepository stockMovementRepository,
-    ICariAccountRepository cariAccountRepository)
+    ICariAccountRepository cariAccountRepository,
+    IUserNotificationService userNotificationService)
     : IRequestHandler<ApprovePurchaseOrderCommand>
 {
     public async Task Handle(ApprovePurchaseOrderCommand request, CancellationToken cancellationToken)
@@ -48,5 +50,12 @@ public sealed class ApprovePurchaseOrderCommandHandler(
 
         order.Status = OrderStatus.Approved;
         await purchaseOrderRepository.UpdateAsync(order, cancellationToken);
+
+        await userNotificationService.PublishAsync(
+            "success",
+            "Satin alma siparisi onaylandi",
+            $"{order.OrderNo} numarali siparis onaylandi. Tedarikci: {supplierCari.Name}. Toplam: {total:N2} TRY.",
+            "/purchase-orders",
+            cancellationToken);
     }
 }

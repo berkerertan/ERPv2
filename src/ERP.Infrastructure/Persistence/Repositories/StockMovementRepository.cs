@@ -20,4 +20,22 @@ public sealed class StockMovementRepository : EfRepository<StockMovement>, IStoc
             .Where(x => x.WarehouseId == warehouseId && x.ProductId == productId)
             .SumAsync(x => x.Type == StockMovementType.In ? x.Quantity : -x.Quantity, cancellationToken);
     }
+
+    public async Task AddRangeAsync(IEnumerable<StockMovement> entities, CancellationToken cancellationToken = default)
+    {
+        var materialized = entities.ToList();
+        if (materialized.Count == 0)
+        {
+            return;
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var entity in materialized)
+        {
+            entity.CreatedAtUtc = now;
+        }
+
+        await _dbContext.StockMovements.AddRangeAsync(materialized, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

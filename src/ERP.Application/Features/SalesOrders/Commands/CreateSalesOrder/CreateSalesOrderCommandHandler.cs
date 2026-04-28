@@ -1,3 +1,4 @@
+using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
 using ERP.Domain.Entities;
@@ -10,7 +11,8 @@ public sealed class CreateSalesOrderCommandHandler(
     ISalesOrderRepository salesOrderRepository,
     ICariAccountRepository cariAccountRepository,
     IWarehouseRepository warehouseRepository,
-    IProductRepository productRepository)
+    IProductRepository productRepository,
+    IUserNotificationService userNotificationService)
     : IRequestHandler<CreateSalesOrderCommand, Guid>
 {
     public async Task<Guid> Handle(CreateSalesOrderCommand request, CancellationToken cancellationToken)
@@ -57,6 +59,15 @@ public sealed class CreateSalesOrderCommandHandler(
         };
 
         await salesOrderRepository.AddAsync(order, cancellationToken);
+
+        var total = order.Items.Sum(item => item.Quantity * item.UnitPrice);
+        await userNotificationService.PublishAsync(
+            "warning",
+            "Satis siparisi onay bekliyor",
+            $"{order.OrderNo} numarali siparis {buyerBch.Name} icin olusturuldu. Toplam: {total:N2} TRY.",
+            "/sales-orders",
+            cancellationToken);
+
         return order.Id;
     }
 }

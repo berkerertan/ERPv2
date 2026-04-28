@@ -6,6 +6,7 @@ using ERP.Application.Features.PurchaseOrders.Commands.DeletePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.UpdatePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrderById;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrders;
+using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseRecommendations;
 using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +32,30 @@ public sealed class PurchaseOrdersController(IMediator mediator) : ControllerBas
     public async Task<ActionResult<PurchaseOrderDto>> GetById(Guid id, CancellationToken cancellationToken)
     {
         var response = await mediator.Send(new GetPurchaseOrderByIdQuery(id), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("recommendations")]
+    [ProducesResponseType(typeof(PurchaseRecommendationDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PurchaseRecommendationDto>> GetRecommendations(
+        [FromQuery] Guid warehouseId,
+        [FromQuery] Guid? supplierCariAccountId,
+        [FromQuery] int analysisDays = 30,
+        [FromQuery] int coverageDays = 21,
+        [FromQuery] int maxItems = 30,
+        [FromQuery] bool criticalOnly = false,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(
+            new GetPurchaseRecommendationsQuery(
+                warehouseId,
+                supplierCariAccountId,
+                analysisDays,
+                coverageDays,
+                maxItems,
+                criticalOnly),
+            cancellationToken);
+
         return Ok(response);
     }
 
