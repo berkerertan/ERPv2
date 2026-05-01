@@ -9,7 +9,8 @@ namespace ERP.Application.Features.StockMovements.Commands.ApplyInventoryCount;
 public sealed class ApplyInventoryCountCommandHandler(
     IWarehouseRepository warehouseRepository,
     IProductRepository productRepository,
-    IStockMovementRepository stockMovementRepository)
+    IStockMovementRepository stockMovementRepository,
+    IInventoryCountSessionRepository inventoryCountSessionRepository)
     : IRequestHandler<ApplyInventoryCountCommand, ApplyInventoryCountResult>
 {
     public async Task<ApplyInventoryCountResult> Handle(ApplyInventoryCountCommand request, CancellationToken cancellationToken)
@@ -33,9 +34,11 @@ public sealed class ApplyInventoryCountCommandHandler(
         }
 
         var submittedItems = normalizedItems.Count;
-        var referenceNo = NormalizeReferenceNo(request.ReferenceNo);
+        var session = await ResolveSessionAsync(request, cancellationToken);
+        var referenceNo = session.ReferenceNo;
         var notes = NormalizeText(request.Notes, 500);
         var appliedMovements = new List<StockMovement>();
+        var sessionItems = new List<InventoryCountSessionItem>();
         decimal totalIncreaseQuantity = 0m;
         decimal totalDecreaseQuantity = 0m;
 
@@ -69,6 +72,7 @@ public sealed class ApplyInventoryCountCommandHandler(
 
             appliedMovements.Add(new StockMovement
             {
+                InventoryCountSessionId = session.Id,
                 WarehouseId = request.WarehouseId,
                 ProductId = item.ProductId,
                 Type = difference > 0 ? StockMovementType.In : StockMovementType.Out,
@@ -79,6 +83,23 @@ public sealed class ApplyInventoryCountCommandHandler(
                 ReasonNote = BuildReasonNote(notes, systemQuantity, item.CountedQuantity),
                 MovementDateUtc = DateTime.UtcNow
             });
+
+            sessionItems.Add(new InventoryCountSessionItem
+            {
+                InventoryCountSessionId = session.Id,
+                ProductId = product.Id,
+                ProductCode = product.Code,
+                ProductName = product.Name,
+                Barcode = product.BarcodeEan13,
+                Unit = product.Unit,
+                LocationCode = NormalizeText(request.LocationCode, 100) ?? session.LocationCode,
+                CountedByUserId = request.StartedByUserId,
+                CountedByUserName = NormalizeText(request.StartedByUserName, 100),
+                SystemQuantity = systemQuantity,
+                CountedQuantity = item.CountedQuantity,
+                DifferenceQuantity = difference,
+                CountedAtUtc = DateTime.UtcNow
+            });
         }
 
         if (appliedMovements.Count > 0)
@@ -86,13 +107,75 @@ public sealed class ApplyInventoryCountCommandHandler(
             await stockMovementRepository.AddRangeAsync(appliedMovements, cancellationToken);
         }
 
+        session.ReferenceNo = referenceNo;
+        session.Notes = notes ?? session.Notes;
+        session.LocationCode = NormalizeText(request.LocationCode, 100) ?? session.LocationCode;
+        session.StartedByUserId ??= request.StartedByUserId;
+        session.StartedByUserName ??= NormalizeText(request.StartedByUserName, 100);
+        session.SubmittedItems = submittedItems;
+        session.AppliedItems = appliedMovements.Count;
+        session.SkippedItems = submittedItems - appliedMovements.Count;
+        session.TotalIncreaseQuantity = totalIncreaseQuantity;
+        session.TotalDecreaseQuantity = totalDecreaseQuantity;
+        session.CompletedAtUtc = DateTime.UtcNow;
+        session.Status = InventoryCountSessionStatus.Applied;
+
+        if (request.SessionId.HasValue)
+        {
+            session.Items = sessionItems;
+            await inventoryCountSessionRepository.UpdateAsync(session, cancellationToken);
+        }
+        else
+        {
+            await inventoryCountSessionRepository.AddWithItemsAsync(session, sessionItems, cancellationToken);
+        }
+
         return new ApplyInventoryCountResult(
+            session.Id,
             referenceNo,
             submittedItems,
             appliedMovements.Count,
             submittedItems - appliedMovements.Count,
             totalIncreaseQuantity,
             totalDecreaseQuantity);
+    }
+
+    private async Task<InventoryCountSession> ResolveSessionAsync(
+        ApplyInventoryCountCommand request,
+        CancellationToken cancellationToken)
+    {
+        if (request.SessionId.HasValue)
+        {
+            var existing = await inventoryCountSessionRepository.GetWithItemsAsync(request.SessionId.Value, cancellationToken);
+            if (existing is null)
+            {
+                throw new NotFoundException("Inventory count session not found.");
+            }
+
+            if (existing.Status != InventoryCountSessionStatus.Open)
+            {
+                throw new ConflictException("Inventory count session is already closed.");
+            }
+
+            if (existing.WarehouseId != request.WarehouseId)
+            {
+                throw new ConflictException("Inventory count session warehouse mismatch.");
+            }
+
+            return existing;
+        }
+
+        return new InventoryCountSession
+        {
+            WarehouseId = request.WarehouseId,
+            Status = InventoryCountSessionStatus.Applied,
+            ReferenceNo = NormalizeReferenceNo(request.ReferenceNo),
+            Notes = NormalizeText(request.Notes, 500),
+            LocationCode = NormalizeText(request.LocationCode, 100),
+            StartedByUserId = request.StartedByUserId,
+            StartedByUserName = NormalizeText(request.StartedByUserName, 100),
+            StartedAtUtc = DateTime.UtcNow
+        };
     }
 
     private static string NormalizeReferenceNo(string? value)

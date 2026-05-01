@@ -866,6 +866,182 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.ToTable("FinanceMovements", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.InventoryCountSession", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AppliedItems")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("LocationCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("ReferenceNo")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SkippedItems")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("StartedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StartedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SubmittedItems")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalDecreaseQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("TotalIncreaseQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StartedByUserId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("TenantAccountId", "Status", "StartedAtUtc");
+
+                    b.HasIndex("TenantAccountId", "WarehouseId", "StartedAtUtc");
+
+                    b.ToTable("InventoryCountSessions", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.InventoryCountSessionItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CountedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CountedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CountedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("CountedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("DifferenceQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("InventoryCountSessionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("LocationCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ProductCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("SystemQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InventoryCountSessionId");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("TenantAccountId", "InventoryCountSessionId");
+
+                    b.HasIndex("TenantAccountId", "ProductId", "CountedAtUtc");
+
+                    b.ToTable("InventoryCountSessionItems", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Invoice", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2345,6 +2521,9 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid?>("InventoryCountSessionId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<bool>("IsDeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("bit")
@@ -2396,6 +2575,8 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("InventoryCountSessionId");
 
                     b.HasIndex("ProductId");
 
@@ -3025,6 +3206,47 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.InventoryCountSession", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("StartedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.InventoryCountSessionItem", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.InventoryCountSession", null)
+                        .WithMany("Items")
+                        .HasForeignKey("InventoryCountSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Invoice", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.CariAccount", null)
@@ -3356,6 +3578,11 @@ namespace ERP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ERP.Domain.Entities.StockMovement", b =>
                 {
+                    b.HasOne("ERP.Domain.Entities.InventoryCountSession", null)
+                        .WithMany()
+                        .HasForeignKey("InventoryCountSessionId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ERP.Domain.Entities.Product", null)
                         .WithMany()
                         .HasForeignKey("ProductId")
@@ -3466,6 +3693,11 @@ namespace ERP.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.CariAccount", b =>
                 {
                     b.Navigation("DebtItems");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.InventoryCountSession", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Invoice", b =>

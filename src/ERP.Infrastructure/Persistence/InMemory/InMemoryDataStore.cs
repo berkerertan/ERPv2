@@ -12,4 +12,6 @@ public sealed class InMemoryDataStore
     public List<Warehouse> Warehouses { get; } = [];
     public List<Product> Products { get; } = [];
     public List<StockMovement> StockMovements { get; } = [];
+    public List<InventoryCountSession> InventoryCountSessions { get; } = [];
+    public List<InventoryCountSessionItem> InventoryCountSessionItems { get; } = [];
 }

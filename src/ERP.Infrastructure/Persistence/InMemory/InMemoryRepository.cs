@@ -8,7 +8,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
 {
     protected abstract List<T> Entities { get; }
 
-    public Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public virtual Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         lock (store.SyncRoot)
         {
@@ -16,7 +16,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
         }
     }
 
-    public Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
+    public virtual Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         lock (store.SyncRoot)
         {
@@ -24,7 +24,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
         }
     }
 
-    public Task AddAsync(T entity, CancellationToken cancellationToken = default)
+    public virtual Task AddAsync(T entity, CancellationToken cancellationToken = default)
     {
         lock (store.SyncRoot)
         {
@@ -35,7 +35,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
         return Task.CompletedTask;
     }
 
-    public Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
+    public virtual Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
         lock (store.SyncRoot)
         {
@@ -50,7 +50,7 @@ public abstract class InMemoryRepository<T>(InMemoryDataStore store) : IReposito
         return Task.CompletedTask;
     }
 
-    public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public virtual Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         lock (store.SyncRoot)
         {

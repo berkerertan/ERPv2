@@ -37,6 +37,8 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<Warehouse> Warehouses => Set<Warehouse>();
     public DbSet<Product> Products => Set<Product>();
     public DbSet<StockMovement> StockMovements => Set<StockMovement>();
+    public DbSet<InventoryCountSession> InventoryCountSessions => Set<InventoryCountSession>();
+    public DbSet<InventoryCountSessionItem> InventoryCountSessionItems => Set<InventoryCountSessionItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
@@ -480,16 +482,70 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
         {
             builder.ToTable("StockMovements");
             builder.HasIndex(x => new { x.TenantAccountId, x.WarehouseId, x.ProductId, x.MovementDateUtc });
+            builder.HasIndex(x => x.InventoryCountSessionId);
             builder.Property(x => x.Quantity).HasPrecision(18, 3);
             builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
             builder.Property(x => x.ReferenceNo).HasMaxLength(50);
             builder.Property(x => x.ReasonNote).HasMaxLength(500);
             builder.Property(x => x.ProofImageUrl).HasMaxLength(1000);
             builder.Property(x => x.ProofImagePublicId).HasMaxLength(300);
+            builder.HasOne<InventoryCountSession>()
+                .WithMany()
+                .HasForeignKey(x => x.InventoryCountSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
             builder.HasOne<Warehouse>()
                 .WithMany()
                 .HasForeignKey(x => x.WarehouseId)
                 .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<InventoryCountSession>(builder =>
+        {
+            builder.ToTable("InventoryCountSessions");
+            builder.HasIndex(x => new { x.TenantAccountId, x.WarehouseId, x.StartedAtUtc });
+            builder.HasIndex(x => new { x.TenantAccountId, x.Status, x.StartedAtUtc });
+            builder.Property(x => x.ReferenceNo).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Notes).HasMaxLength(500);
+            builder.Property(x => x.LocationCode).HasMaxLength(100);
+            builder.Property(x => x.StartedByUserName).HasMaxLength(100);
+            builder.Property(x => x.TotalIncreaseQuantity).HasPrecision(18, 3);
+            builder.Property(x => x.TotalDecreaseQuantity).HasPrecision(18, 3);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.StartedByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.InventoryCountSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<InventoryCountSessionItem>(builder =>
+        {
+            builder.ToTable("InventoryCountSessionItems");
+            builder.HasIndex(x => new { x.TenantAccountId, x.InventoryCountSessionId });
+            builder.HasIndex(x => new { x.TenantAccountId, x.ProductId, x.CountedAtUtc });
+            builder.Property(x => x.ProductCode).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.ProductName).HasMaxLength(200).IsRequired();
+            builder.Property(x => x.Barcode).HasMaxLength(50);
+            builder.Property(x => x.Unit).HasMaxLength(10).IsRequired();
+            builder.Property(x => x.LocationCode).HasMaxLength(100);
+            builder.Property(x => x.CountedByUserName).HasMaxLength(100);
+            builder.Property(x => x.SystemQuantity).HasPrecision(18, 3);
+            builder.Property(x => x.CountedQuantity).HasPrecision(18, 3);
+            builder.Property(x => x.DifferenceQuantity).HasPrecision(18, 3);
             builder.HasOne<Product>()
                 .WithMany()
                 .HasForeignKey(x => x.ProductId)

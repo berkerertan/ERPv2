@@ -4,9 +4,12 @@ using ERP.Application.Abstractions.Media;
 using ERP.Application.Features.StockMovements.Commands.ApplyInventoryCount;
 using ERP.Application.Features.StockMovements.Commands.CreateStockMovement;
 using ERP.Application.Features.StockMovements.Commands.DeleteStockMovement;
+using ERP.Application.Features.StockMovements.Commands.StartInventoryCountSession;
 using ERP.Application.Features.StockMovements.Commands.TransferStock;
 using ERP.Application.Features.StockMovements.Commands.UpdateStockMovement;
 using ERP.Application.Features.StockMovements.Queries.GetCriticalStockAlerts;
+using ERP.Application.Features.StockMovements.Queries.GetInventoryCountSessionById;
+using ERP.Application.Features.StockMovements.Queries.GetInventoryCountSessions;
 using ERP.Application.Features.StockMovements.Queries.GetStockBalances;
 using ERP.Application.Features.StockMovements.Queries.GetStockMovementById;
 using ERP.Application.Features.StockMovements.Queries.GetStockMovements;
@@ -14,6 +17,7 @@ using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ERP.API.Controllers;
 
@@ -95,21 +99,73 @@ public sealed class StockMovementsController(IMediator mediator, IMediaStorageSe
         [FromBody] ApplyInventoryCountRequest request,
         CancellationToken cancellationToken)
     {
+        var currentUserId = GetCurrentUserId();
+        var currentUserName = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name;
         var result = await mediator.Send(
             new ApplyInventoryCountCommand(
+                request.SessionId,
                 request.WarehouseId,
                 request.ReferenceNo,
                 request.Notes,
+                request.LocationCode,
+                currentUserId,
+                currentUserName,
                 request.Items.Select(x => new ApplyInventoryCountItem(x.ProductId, x.CountedQuantity)).ToList()),
             cancellationToken);
 
         return Ok(new ApplyInventoryCountResponse(
+            result.SessionId,
             result.ReferenceNo,
             result.SubmittedItems,
             result.AppliedItems,
             result.SkippedItems,
             result.TotalIncreaseQuantity,
             result.TotalDecreaseQuantity));
+    }
+
+    [HttpPost("inventory-count-sessions")]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    public async Task<ActionResult<Guid>> StartInventoryCountSession(
+        [FromBody] StartInventoryCountSessionRequest request,
+        CancellationToken cancellationToken)
+    {
+        var sessionId = await mediator.Send(
+            new StartInventoryCountSessionCommand(
+                request.WarehouseId,
+                request.ReferenceNo,
+                request.Notes,
+                request.LocationCode,
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
+            cancellationToken);
+
+        return Created($"/api/stock-movements/inventory-count-sessions/{sessionId}", sessionId);
+    }
+
+    [HttpGet("inventory-count-sessions")]
+    [ProducesResponseType(typeof(IReadOnlyList<InventoryCountSessionListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<InventoryCountSessionListItemDto>>> GetInventoryCountSessions(
+        [FromQuery] Guid? warehouseId,
+        [FromQuery] bool includeCompleted = true,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 25,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(
+            new GetInventoryCountSessionsQuery(warehouseId, includeCompleted, page, pageSize),
+            cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpGet("inventory-count-sessions/{id:guid}")]
+    [ProducesResponseType(typeof(InventoryCountSessionDetailDto), StatusCodes.Status200OK)]
+    public async Task<ActionResult<InventoryCountSessionDetailDto>> GetInventoryCountSessionById(
+        Guid id,
+        CancellationToken cancellationToken)
+    {
+        var response = await mediator.Send(new GetInventoryCountSessionByIdQuery(id), cancellationToken);
+        return Ok(response);
     }
 
     [HttpPost("transfer")]
@@ -220,6 +276,12 @@ public sealed class StockMovementsController(IMediator mediator, IMediaStorageSe
     {
         await mediator.Send(new DeleteStockMovementCommand(id), cancellationToken);
         return NoContent();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        return Guid.TryParse(sub, out var userId) ? userId : null;
     }
 }
 

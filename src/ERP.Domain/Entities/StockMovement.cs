@@ -5,6 +5,7 @@ namespace ERP.Domain.Entities;
 
 public sealed class StockMovement : TenantOwnedEntity
 {
+    public Guid? InventoryCountSessionId { get; set; }
     public Guid WarehouseId { get; set; }
     public Guid ProductId { get; set; }
     public StockMovementType Type { get; set; }
