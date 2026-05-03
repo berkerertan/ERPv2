@@ -20,6 +20,12 @@ public sealed class GetSalesOrderByIdQueryHandler(ISalesOrderRepository salesOrd
             order.WarehouseId,
             order.Status,
             order.OrderDateUtc,
+            order.CreatedAtUtc,
+            order.ApprovedAtUtc,
+            order.ApprovedByUserName,
+            order.CancelledAtUtc,
+            order.CancelledByUserName,
+            order.CancellationReason,
             order.Items.Sum(item => item.Quantity * item.UnitPrice),
             order.Items.Select(item => new SalesOrderItemDto(item.ProductId, item.Quantity, item.UnitPrice)).ToList());
     }

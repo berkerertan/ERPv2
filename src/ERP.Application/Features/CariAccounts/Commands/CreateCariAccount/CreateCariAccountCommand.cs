@@ -9,4 +9,5 @@ public sealed record CreateCariAccountCommand(
     CariType Type,
     decimal RiskLimit,
     int MaturityDays,
+    int SupplierLeadTimeDays,
     string? Phone = null) : IRequest<Guid>;

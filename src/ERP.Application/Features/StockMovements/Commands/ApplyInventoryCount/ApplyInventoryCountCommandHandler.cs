@@ -15,6 +15,23 @@ public sealed class ApplyInventoryCountCommandHandler(
 {
     public async Task<ApplyInventoryCountResult> Handle(ApplyInventoryCountCommand request, CancellationToken cancellationToken)
     {
+        var clientRequestId = NormalizeText(request.ClientRequestId, 64);
+        if (!string.IsNullOrWhiteSpace(clientRequestId))
+        {
+            var existingSession = await inventoryCountSessionRepository.GetByClientRequestIdAsync(clientRequestId, cancellationToken);
+            if (existingSession is not null)
+            {
+                return new ApplyInventoryCountResult(
+                    existingSession.Id,
+                    existingSession.ReferenceNo,
+                    existingSession.SubmittedItems,
+                    existingSession.AppliedItems,
+                    existingSession.SkippedItems,
+                    existingSession.TotalIncreaseQuantity,
+                    existingSession.TotalDecreaseQuantity);
+            }
+        }
+
         if (await warehouseRepository.GetByIdAsync(request.WarehouseId, cancellationToken) is null)
         {
             throw new NotFoundException("Warehouse not found.");
@@ -108,6 +125,7 @@ public sealed class ApplyInventoryCountCommandHandler(
         }
 
         session.ReferenceNo = referenceNo;
+        session.ClientRequestId = clientRequestId ?? session.ClientRequestId;
         session.Notes = notes ?? session.Notes;
         session.LocationCode = NormalizeText(request.LocationCode, 100) ?? session.LocationCode;
         session.StartedByUserId ??= request.StartedByUserId;
@@ -170,6 +188,7 @@ public sealed class ApplyInventoryCountCommandHandler(
             WarehouseId = request.WarehouseId,
             Status = InventoryCountSessionStatus.Applied,
             ReferenceNo = NormalizeReferenceNo(request.ReferenceNo),
+            ClientRequestId = NormalizeText(request.ClientRequestId, 64),
             Notes = NormalizeText(request.Notes, 500),
             LocationCode = NormalizeText(request.LocationCode, 100),
             StartedByUserId = request.StartedByUserId,

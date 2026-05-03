@@ -223,6 +223,7 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
             request.Type,
             request.RiskLimit,
             request.MaturityDays,
+            request.SupplierLeadTimeDays,
             request.Phone);
 
         var id = await mediator.Send(command, cancellationToken);
@@ -240,6 +241,7 @@ public sealed class CariAccountsController(IMediator mediator, ErpDbContext dbCo
             request.Type,
             request.RiskLimit,
             request.MaturityDays,
+            request.SupplierLeadTimeDays,
             request.Phone);
 
         await mediator.Send(command, cancellationToken);

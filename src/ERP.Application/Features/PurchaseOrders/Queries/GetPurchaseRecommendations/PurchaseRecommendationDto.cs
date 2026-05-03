@@ -6,6 +6,14 @@ public sealed record PurchaseRecommendationSummaryDto(
     decimal TotalRecommendedQuantity,
     decimal TotalEstimatedCost);
 
+public sealed record PurchaseRecommendationSupplierGroupDto(
+    Guid? SupplierCariAccountId,
+    string SupplierName,
+    int SupplierLeadTimeDays,
+    int ItemCount,
+    decimal TotalRecommendedQuantity,
+    decimal TotalEstimatedCost);
+
 public sealed record PurchaseRecommendationItemDto(
     Guid ProductId,
     string ProductCode,
@@ -19,6 +27,8 @@ public sealed record PurchaseRecommendationItemDto(
     decimal AvailableQuantity,
     decimal AverageDailySales,
     decimal DaysOfCover,
+    int SupplierLeadTimeDays,
+    int PlanningDays,
     decimal CriticalStockLevel,
     decimal MinimumStockLevel,
     decimal? MaximumStockLevel,
@@ -35,4 +45,5 @@ public sealed record PurchaseRecommendationDto(
     int AnalysisDays,
     int CoverageDays,
     PurchaseRecommendationSummaryDto Summary,
+    IReadOnlyList<PurchaseRecommendationSupplierGroupDto> SupplierGroups,
     IReadOnlyList<PurchaseRecommendationItemDto> Items);

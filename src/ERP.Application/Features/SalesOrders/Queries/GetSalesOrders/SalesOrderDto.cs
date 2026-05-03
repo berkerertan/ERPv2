@@ -11,5 +11,11 @@ public sealed record SalesOrderDto(
     Guid WarehouseId,
     OrderStatus Status,
     DateTime OrderDateUtc,
+    DateTime CreatedAtUtc,
+    DateTime? ApprovedAtUtc,
+    string? ApprovedByUserName,
+    DateTime? CancelledAtUtc,
+    string? CancelledByUserName,
+    string? CancellationReason,
     decimal TotalAmount,
     IReadOnlyList<SalesOrderItemDto> Items);

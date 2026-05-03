@@ -24,6 +24,7 @@ public sealed class UpdateCariAccountCommandHandler(ICariAccountRepository repos
         account.Type = request.Type;
         account.RiskLimit = request.RiskLimit;
         account.MaturityDays = request.MaturityDays;
+        account.SupplierLeadTimeDays = request.SupplierLeadTimeDays;
 
         await repository.UpdateAsync(account, cancellationToken);
     }

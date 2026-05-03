@@ -1,8 +1,10 @@
 using ERP.API.Common;
+using ERP.API.Contracts.Orders;
 using ERP.API.Contracts.SalesOrders;
 using ERP.Application.Features.SalesOrders.Commands.ApproveSalesOrder;
 using ERP.Application.Features.SalesOrders.Commands.CreateSalesOrder;
 using ERP.Application.Features.SalesOrders.Commands.DeleteSalesOrder;
+using ERP.Application.Features.SalesOrders.Commands.RejectSalesOrder;
 using ERP.Application.Features.SalesOrders.Commands.UpdateSalesOrder;
 using ERP.Application.Features.SalesOrders.Queries.GetSalesOrderById;
 using ERP.Application.Features.SalesOrders.Queries.GetSalesOrders;
@@ -10,6 +12,7 @@ using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ERP.API.Controllers;
 
@@ -75,8 +78,33 @@ public sealed class SalesOrdersController(IMediator mediator) : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
-        await mediator.Send(new ApproveSalesOrderCommand(id), cancellationToken);
+        await mediator.Send(
+            new ApproveSalesOrderCommand(
+                id,
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
+            cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reject")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectOrderRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new RejectSalesOrderCommand(
+                id,
+                request.Reason,
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
+            cancellationToken);
+        return NoContent();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 

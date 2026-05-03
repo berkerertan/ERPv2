@@ -1,3 +1,4 @@
+using ERP.Application.Abstractions.Auditing;
 using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
@@ -12,6 +13,7 @@ public sealed class ApproveSalesOrderCommandHandler(
     IStockMovementRepository stockMovementRepository,
     ICariAccountRepository cariAccountRepository,
     IProductRepository productRepository,
+    IBusinessActivityService businessActivityService,
     IUserNotificationService userNotificationService)
     : IRequestHandler<ApproveSalesOrderCommand>
 {
@@ -66,7 +68,24 @@ public sealed class ApproveSalesOrderCommandHandler(
         await cariAccountRepository.UpdateAsync(buyerBchCari, cancellationToken);
 
         order.Status = OrderStatus.Approved;
+        order.ApprovedAtUtc = DateTime.UtcNow;
+        order.ApprovedByUserId = request.ApprovedByUserId;
+        order.ApprovedByUserName = NormalizeText(request.ApprovedByUserName, 100);
+        order.CancelledAtUtc = null;
+        order.CancelledByUserId = null;
+        order.CancelledByUserName = null;
+        order.CancellationReason = null;
         await salesOrderRepository.UpdateAsync(order, cancellationToken);
+
+        await businessActivityService.LogAsync(
+            new BusinessActivityLogEntry(
+                order.TenantAccountId,
+                request.ApprovedByUserId,
+                request.ApprovedByUserName,
+                "APPROVE",
+                $"/sales-orders/{order.Id}",
+                $"{order.OrderNo} numarali satis siparisi onaylandi. Musteri: {buyerBchCari.Name}. Toplam: {total:N2} TRY."),
+            cancellationToken);
 
         await userNotificationService.PublishAsync(
             "success",
@@ -105,5 +124,16 @@ public sealed class ApproveSalesOrderCommandHandler(
                 "/products",
                 cancellationToken);
         }
+    }
+
+    private static string? NormalizeText(string? value, int maxLength)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        return normalized.Length > maxLength ? normalized[..maxLength] : normalized;
     }
 }

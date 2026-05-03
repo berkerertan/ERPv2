@@ -1,6 +1,6 @@
 ﻿# StokNet Project Status
 
-Last updated: 2026-05-01
+Last updated: 2026-05-03
 
 ## Repo layout
 - Backend/API repo: `C:\Users\User\Documents\ERPv2`
@@ -20,24 +20,16 @@ Last updated: 2026-05-01
 ## Synced full-stack features
 - Barcode-assisted inventory counting
 - Bulk inventory count apply endpoint
-- Inventory count session backend foundation:
-  - start session endpoint
-  - session list/detail endpoints
-  - persisted session items/history
-  - stock movement to session linkage
-- Angular inventory count session UI:
-  - session start
-  - open-session list
-  - resume active session
-  - session-aware count apply
-- Inventory count history improvements:
-  - difference summary
-  - completed-session history
-  - session detail modal
-  - item-level location + counted-by trace
+- Inventory count sessions and history
 - Purchase recommendations endpoint and UI integration
-- Notification center backed by `/api/notifications`
-- Buyer risk summary notifications via `/api/cari-accounts/buyers/risk-summary`
+- Buyer risk summary notifications and buyer risk screen
+- Purchase/sales order approval history and rejection flow
+- Mobile counting UX tightening
+- Purchase recommendations 2.0:
+  - supplier lead-time aware target stock calculation
+  - supplier lead-time field on supplier records
+  - supplier grouping in recommendation output
+  - split recommendations into multiple supplier draft orders
 - Landing/demo CTA alignment
 - Demo login without exposing credentials in inputs
 
@@ -51,15 +43,18 @@ Last updated: 2026-05-01
 2. Inventory count session UI, session resume flow
 3. Inventory count history + difference summary
 4. Shelf/location visibility + per-user count trace
-5. Mobile counting UX tightening
+5. Approval history + rejection flow
+6. Mobile counting UX tightening
+7. Purchase recommendations 2.0
 
 ## Next backlog
-1. Buyer list risk badges/columns
-2. Approval timeline UI details
-3. Supplier lead-time aware purchase recommendations
-4. Multi-supplier recommendation split into separate drafts
-5. More robust mobile barcode UX and repeated scan batching
+1. Better multi-supplier recommendation refinement rules
+2. More robust mobile barcode batching
+3. Deeper approval timeline UI polish
+4. Offline queue + later sync for counting
 
 ## Current caution
 - Angular repo contains `src/app/features/auth/verify-email/` and it is in use.
 - Keep backend and Angular changes aligned before the next push.
+
+

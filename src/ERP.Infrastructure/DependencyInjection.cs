@@ -1,4 +1,5 @@
 using ERP.Application.Abstractions.Imports;
+using ERP.Application.Abstractions.Auditing;
 using ERP.Application.Abstractions.Media;
 using ERP.Application.Abstractions.DocumentScanner;
 using ERP.Application.Abstractions.Notifications;
@@ -104,6 +105,7 @@ public static class DependencyInjection
         services.AddScoped<IEmailSender, SmtpEmailSender>();
         services.AddScoped<IAccountEmailService, AccountEmailService>();
         services.AddScoped<IUserNotificationService, UserNotificationService>();
+        services.AddScoped<IBusinessActivityService, BusinessActivityService>();
         services.AddScoped<IMediaStorageService, CloudinaryMediaStorageService>();
         services.AddHttpClient<IDocumentScannerService, GeminiDocumentScannerService>((serviceProvider, client) =>
         {

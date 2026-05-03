@@ -23,6 +23,7 @@ public sealed class CreateCariAccountCommandHandler(ICariAccountRepository repos
             Type = request.Type,
             RiskLimit = request.RiskLimit,
             MaturityDays = request.MaturityDays,
+            SupplierLeadTimeDays = request.SupplierLeadTimeDays,
             CurrentBalance = 0m
         };
 

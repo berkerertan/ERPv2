@@ -21,6 +21,13 @@ public sealed class InventoryCountSessionRepository : EfRepository<InventoryCoun
             .FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 
+    public async Task<InventoryCountSession?> GetByClientRequestIdAsync(string clientRequestId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.InventoryCountSessions
+            .Include(x => x.Items)
+            .FirstOrDefaultAsync(x => x.ClientRequestId == clientRequestId, cancellationToken);
+    }
+
     public async Task<IReadOnlyList<InventoryCountSession>> GetFilteredAsync(
         Guid? warehouseId,
         bool includeCompleted,

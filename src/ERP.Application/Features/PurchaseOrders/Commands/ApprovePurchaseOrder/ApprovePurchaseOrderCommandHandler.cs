@@ -1,3 +1,4 @@
+using ERP.Application.Abstractions.Auditing;
 using ERP.Application.Abstractions.Notifications;
 using ERP.Application.Abstractions.Persistence;
 using ERP.Application.Common.Exceptions;
@@ -11,6 +12,7 @@ public sealed class ApprovePurchaseOrderCommandHandler(
     IPurchaseOrderRepository purchaseOrderRepository,
     IStockMovementRepository stockMovementRepository,
     ICariAccountRepository cariAccountRepository,
+    IBusinessActivityService businessActivityService,
     IUserNotificationService userNotificationService)
     : IRequestHandler<ApprovePurchaseOrderCommand>
 {
@@ -49,7 +51,24 @@ public sealed class ApprovePurchaseOrderCommandHandler(
         await cariAccountRepository.UpdateAsync(supplierCari, cancellationToken);
 
         order.Status = OrderStatus.Approved;
+        order.ApprovedAtUtc = DateTime.UtcNow;
+        order.ApprovedByUserId = request.ApprovedByUserId;
+        order.ApprovedByUserName = NormalizeText(request.ApprovedByUserName, 100);
+        order.CancelledAtUtc = null;
+        order.CancelledByUserId = null;
+        order.CancelledByUserName = null;
+        order.CancellationReason = null;
         await purchaseOrderRepository.UpdateAsync(order, cancellationToken);
+
+        await businessActivityService.LogAsync(
+            new BusinessActivityLogEntry(
+                order.TenantAccountId,
+                request.ApprovedByUserId,
+                request.ApprovedByUserName,
+                "APPROVE",
+                $"/purchase-orders/{order.Id}",
+                $"{order.OrderNo} numarali satin alma siparisi onaylandi. Tedarikci: {supplierCari.Name}. Toplam: {total:N2} TRY."),
+            cancellationToken);
 
         await userNotificationService.PublishAsync(
             "success",
@@ -57,5 +76,16 @@ public sealed class ApprovePurchaseOrderCommandHandler(
             $"{order.OrderNo} numarali siparis onaylandi. Tedarikci: {supplierCari.Name}. Toplam: {total:N2} TRY.",
             "/purchase-orders",
             cancellationToken);
+    }
+
+    private static string? NormalizeText(string? value, int maxLength)
+    {
+        var normalized = (value ?? string.Empty).Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        return normalized.Length > maxLength ? normalized[..maxLength] : normalized;
     }
 }

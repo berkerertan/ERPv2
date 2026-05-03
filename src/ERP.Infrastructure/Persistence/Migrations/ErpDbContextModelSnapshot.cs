@@ -401,6 +401,9 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<int>("SupplierLeadTimeDays")
+                        .HasColumnType("int");
+
                     b.Property<Guid>("TenantAccountId")
                         .HasColumnType("uniqueidentifier");
 
@@ -875,6 +878,10 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.Property<int>("AppliedItems")
                         .HasColumnType("int");
 
+                    b.Property<string>("ClientRequestId")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
                     b.Property<DateTime?>("CompletedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -945,6 +952,10 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantAccountId");
 
                     b.HasIndex("WarehouseId");
+
+                    b.HasIndex("TenantAccountId", "ClientRequestId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0 AND [ClientRequestId] IS NOT NULL");
 
                     b.HasIndex("TenantAccountId", "Status", "StartedAtUtc");
 
@@ -2055,6 +2066,30 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApprovedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancelledByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -2090,6 +2125,10 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("CancelledByUserId");
 
                     b.HasIndex("SupplierCariAccountId");
 
@@ -2412,6 +2451,30 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("ApprovedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ApprovedByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ApprovedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("CancelledAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("CancelledByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("CreatedAtUtc")
                         .HasColumnType("datetime2");
 
@@ -2447,6 +2510,10 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ApprovedByUserId");
+
+                    b.HasIndex("CancelledByUserId");
 
                     b.HasIndex("CustomerCariAccountId");
 
@@ -2652,6 +2719,10 @@ namespace ERP.Infrastructure.Persistence.Migrations
 
                     b.Property<DateTime?>("DeletedAtUtc")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<int>("DurationMs")
                         .HasColumnType("int");
@@ -3413,6 +3484,16 @@ namespace ERP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ERP.Domain.Entities.PurchaseOrder", b =>
                 {
+                    b.HasOne("ERP.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ERP.Domain.Entities.CariAccount", null)
                         .WithMany()
                         .HasForeignKey("SupplierCariAccountId")
@@ -3536,6 +3617,16 @@ namespace ERP.Infrastructure.Persistence.Migrations
 
             modelBuilder.Entity("ERP.Domain.Entities.SalesOrder", b =>
                 {
+                    b.HasOne("ERP.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("ApprovedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.AppUser", null)
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("ERP.Domain.Entities.CariAccount", null)
                         .WithMany()
                         .HasForeignKey("CustomerCariAccountId")

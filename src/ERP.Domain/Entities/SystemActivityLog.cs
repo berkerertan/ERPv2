@@ -7,6 +7,7 @@ public sealed class SystemActivityLog : BaseEntity
     public Guid? TenantAccountId { get; set; }
     public Guid? UserId { get; set; }
     public string? UserName { get; set; }
+    public string? Description { get; set; }
     public string HttpMethod { get; set; } = string.Empty;
     public string Path { get; set; } = string.Empty;
     public int StatusCode { get; set; }

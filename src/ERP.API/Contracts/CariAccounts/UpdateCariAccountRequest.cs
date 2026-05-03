@@ -8,4 +8,5 @@ public sealed record UpdateCariAccountRequest(
     CariType Type,
     decimal RiskLimit,
     int MaturityDays,
+    int SupplierLeadTimeDays = 0,
     string? Phone = null);

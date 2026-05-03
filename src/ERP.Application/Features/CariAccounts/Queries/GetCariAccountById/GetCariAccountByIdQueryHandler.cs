@@ -21,6 +21,7 @@ public sealed class GetCariAccountByIdQueryHandler(ICariAccountRepository reposi
             account.Type,
             account.RiskLimit,
             account.MaturityDays,
+            account.SupplierLeadTimeDays,
             account.CurrentBalance);
     }
 }

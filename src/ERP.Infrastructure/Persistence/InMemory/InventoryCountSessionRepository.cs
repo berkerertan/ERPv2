@@ -33,6 +33,25 @@ public sealed class InventoryCountSessionRepository : InMemoryRepository<Invento
         }
     }
 
+    public Task<InventoryCountSession?> GetByClientRequestIdAsync(string clientRequestId, CancellationToken cancellationToken = default)
+    {
+        lock (_store.SyncRoot)
+        {
+            var session = Entities.FirstOrDefault(x => x.ClientRequestId == clientRequestId && !x.IsDeleted);
+            if (session is null)
+            {
+                return Task.FromResult<InventoryCountSession?>(null);
+            }
+
+            session.Items = _store.InventoryCountSessionItems
+                .Where(x => !x.IsDeleted && x.InventoryCountSessionId == session.Id)
+                .OrderByDescending(x => x.CountedAtUtc)
+                .ToList();
+
+            return Task.FromResult<InventoryCountSession?>(session);
+        }
+    }
+
     public Task<IReadOnlyList<InventoryCountSession>> GetFilteredAsync(
         Guid? warehouseId,
         bool includeCompleted,

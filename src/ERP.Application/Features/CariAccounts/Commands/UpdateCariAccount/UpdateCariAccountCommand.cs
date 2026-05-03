@@ -10,4 +10,5 @@ public sealed record UpdateCariAccountCommand(
     CariType Type,
     decimal RiskLimit,
     int MaturityDays,
+    int SupplierLeadTimeDays,
     string? Phone = null) : IRequest;

@@ -1,6 +1,7 @@
 namespace ERP.API.Contracts.StockMovements;
 
 public sealed record ApplyInventoryCountRequest(
+    string? ClientRequestId,
     Guid? SessionId,
     Guid WarehouseId,
     string? ReferenceNo,

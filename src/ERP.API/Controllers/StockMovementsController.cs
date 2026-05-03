@@ -103,6 +103,7 @@ public sealed class StockMovementsController(IMediator mediator, IMediaStorageSe
         var currentUserName = User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name;
         var result = await mediator.Send(
             new ApplyInventoryCountCommand(
+                request.ClientRequestId,
                 request.SessionId,
                 request.WarehouseId,
                 request.ReferenceNo,

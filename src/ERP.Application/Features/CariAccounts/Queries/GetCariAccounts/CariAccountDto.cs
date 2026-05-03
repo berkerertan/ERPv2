@@ -10,4 +10,5 @@ public sealed record CariAccountDto(
     CariType Type,
     decimal RiskLimit,
     int MaturityDays,
+    int SupplierLeadTimeDays,
     decimal CurrentBalance);

@@ -51,6 +51,7 @@ public sealed class GetCariAccountsQueryHandler(ICariAccountRepository repositor
                 x.Type,
                 x.RiskLimit,
                 x.MaturityDays,
+                x.SupplierLeadTimeDays,
                 x.CurrentBalance))
             .ToList();
     }

@@ -116,6 +116,9 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
             var suggestedSupplierName = suggestedSupplierId.HasValue && suppliers.TryGetValue(suggestedSupplierId.Value, out var supplier)
                 ? supplier.Name
                 : null;
+            var supplierLeadTimeDays = suggestedSupplierId.HasValue && suppliers.TryGetValue(suggestedSupplierId.Value, out var leadTimeSupplier)
+                ? Math.Max(0, leadTimeSupplier.SupplierLeadTimeDays)
+                : 0;
 
             if (request.SupplierCariAccountId.HasValue && suggestedSupplierId != request.SupplierCariAccountId)
             {
@@ -124,6 +127,17 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
 
             var isCritical = availableQuantity <= floorLevel;
             if (request.CriticalOnly && !isCritical)
+            {
+                continue;
+            }
+
+            var planningDays = coverageDays + supplierLeadTimeDays;
+            var leadTimeTarget = Math.Max(floorLevel, averageDailySales * planningDays);
+            targetLevel = maximumLevel.HasValue
+                ? Math.Max(floorLevel, Math.Min(leadTimeTarget, maximumLevel.Value))
+                : leadTimeTarget;
+            shortage = targetLevel - availableQuantity;
+            if (shortage <= 0)
             {
                 continue;
             }
@@ -145,6 +159,8 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
                 availableQuantity,
                 averageDailySales,
                 daysOfCover,
+                supplierLeadTimeDays,
+                planningDays,
                 criticalLevel,
                 minimumLevel,
                 maximumLevel,
@@ -153,7 +169,7 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
                 Math.Round(suggestedUnitPrice, 2, MidpointRounding.AwayFromZero),
                 estimatedCost,
                 isCritical,
-                BuildReason(product, averageDailySales, daysOfCover, availableQuantity, targetLevel, incomingDraft, isCritical)));
+                BuildReason(product, averageDailySales, daysOfCover, availableQuantity, targetLevel, incomingDraft, supplierLeadTimeDays, planningDays, isCritical)));
         }
 
         var orderedItems = items
@@ -176,6 +192,18 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
             analysisDays,
             coverageDays,
             summary,
+            orderedItems
+                .GroupBy(x => new { x.SuggestedSupplierCariAccountId, SupplierName = x.SuggestedSupplierName ?? "Tedarikci atanmamis", x.SupplierLeadTimeDays })
+                .Select(group => new PurchaseRecommendationSupplierGroupDto(
+                    group.Key.SuggestedSupplierCariAccountId,
+                    group.Key.SupplierName,
+                    group.Key.SupplierLeadTimeDays,
+                    group.Count(),
+                    group.Sum(x => x.RecommendedOrderQuantity),
+                    Math.Round(group.Sum(x => x.EstimatedCost), 2, MidpointRounding.AwayFromZero)))
+                .OrderByDescending(x => x.ItemCount)
+                .ThenBy(x => x.SupplierName)
+                .ToList(),
             orderedItems);
     }
 
@@ -187,6 +215,7 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
             request.AnalysisDays,
             request.CoverageDays,
             new PurchaseRecommendationSummaryDto(0, 0, 0m, 0m),
+            [],
             []);
     }
 
@@ -211,6 +240,8 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
         decimal availableQuantity,
         decimal targetLevel,
         decimal incomingDraft,
+        int supplierLeadTimeDays,
+        int planningDays,
         bool isCritical)
     {
         var parts = new List<string>();
@@ -230,6 +261,12 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
             parts.Add($"Taslak siparis yolda: {incomingDraft:0.###}");
         }
 
+        if (supplierLeadTimeDays > 0)
+        {
+            parts.Add($"Tedarikci teslim suresi {supplierLeadTimeDays} gun");
+        }
+
+        parts.Add($"Planlama ufku {planningDays} gun");
         parts.Add($"Hedef seviye {targetLevel:0.###}");
         parts.Add($"Mevcut kullanilabilir {availableQuantity:0.###}");
 

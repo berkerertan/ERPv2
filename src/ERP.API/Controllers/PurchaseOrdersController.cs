@@ -1,8 +1,10 @@
 using ERP.API.Common;
+using ERP.API.Contracts.Orders;
 using ERP.API.Contracts.PurchaseOrders;
 using ERP.Application.Features.PurchaseOrders.Commands.ApprovePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.CreatePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.DeletePurchaseOrder;
+using ERP.Application.Features.PurchaseOrders.Commands.RejectPurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.UpdatePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrderById;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrders;
@@ -11,6 +13,7 @@ using ERP.Domain.Constants;
 using MediatR;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ERP.API.Controllers;
 
@@ -100,8 +103,33 @@ public sealed class PurchaseOrdersController(IMediator mediator) : ControllerBas
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> Approve(Guid id, CancellationToken cancellationToken)
     {
-        await mediator.Send(new ApprovePurchaseOrderCommand(id), cancellationToken);
+        await mediator.Send(
+            new ApprovePurchaseOrderCommand(
+                id,
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
+            cancellationToken);
         return NoContent();
+    }
+
+    [HttpPost("{id:guid}/reject")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Reject(Guid id, [FromBody] RejectOrderRequest request, CancellationToken cancellationToken)
+    {
+        await mediator.Send(
+            new RejectPurchaseOrderCommand(
+                id,
+                request.Reason,
+                GetCurrentUserId(),
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
+            cancellationToken);
+        return NoContent();
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var raw = User.FindFirstValue(ClaimTypes.NameIdentifier);
+        return Guid.TryParse(raw, out var id) ? id : null;
     }
 }
 

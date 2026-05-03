@@ -20,6 +20,12 @@ public sealed class GetPurchaseOrderByIdQueryHandler(IPurchaseOrderRepository pu
             order.WarehouseId,
             order.Status,
             order.OrderDateUtc,
+            order.CreatedAtUtc,
+            order.ApprovedAtUtc,
+            order.ApprovedByUserName,
+            order.CancelledAtUtc,
+            order.CancelledByUserName,
+            order.CancellationReason,
             order.Items.Sum(item => item.Quantity * item.UnitPrice),
             order.Items.Select(item => new PurchaseOrderItemDto(item.ProductId, item.Quantity, item.UnitPrice)).ToList());
     }

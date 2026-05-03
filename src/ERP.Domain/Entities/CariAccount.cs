@@ -11,6 +11,7 @@ public sealed class CariAccount : TenantOwnedEntity
     public CariType Type { get; set; }
     public decimal RiskLimit { get; set; }
     public int MaturityDays { get; set; }
+    public int SupplierLeadTimeDays { get; set; }
     public decimal CurrentBalance { get; set; }
 
     public ICollection<CariDebtItem> DebtItems { get; set; } = [];

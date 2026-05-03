@@ -15,5 +15,6 @@ public sealed class CreateCariAccountCommandValidator : AbstractValidator<Create
         RuleFor(x => x.Type).IsInEnum();
         RuleFor(x => x.RiskLimit).GreaterThanOrEqualTo(0);
         RuleFor(x => x.MaturityDays).InclusiveBetween(0, 365);
+        RuleFor(x => x.SupplierLeadTimeDays).InclusiveBetween(0, 120);
     }
 }

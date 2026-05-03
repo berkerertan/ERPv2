@@ -5,6 +5,7 @@ namespace ERP.Domain.Entities;
 
 public sealed class InventoryCountSession : TenantOwnedEntity
 {
+    public string? ClientRequestId { get; set; }
     public Guid WarehouseId { get; set; }
     public InventoryCountSessionStatus Status { get; set; } = InventoryCountSessionStatus.Open;
     public string ReferenceNo { get; set; } = string.Empty;

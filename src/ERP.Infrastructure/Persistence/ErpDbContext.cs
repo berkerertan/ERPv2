@@ -153,6 +153,7 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasIndex(x => x.TenantAccountId);
             builder.HasIndex(x => x.UserId);
             builder.Property(x => x.UserName).HasMaxLength(100);
+            builder.Property(x => x.Description).HasMaxLength(500);
             builder.Property(x => x.HttpMethod).HasMaxLength(10).IsRequired();
             builder.Property(x => x.Path).HasMaxLength(500).IsRequired();
             builder.Property(x => x.IpAddress).HasMaxLength(100);
@@ -510,6 +511,8 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.ToTable("InventoryCountSessions");
             builder.HasIndex(x => new { x.TenantAccountId, x.WarehouseId, x.StartedAtUtc });
             builder.HasIndex(x => new { x.TenantAccountId, x.Status, x.StartedAtUtc });
+            builder.HasIndex(x => new { x.TenantAccountId, x.ClientRequestId }).IsUnique().HasFilter("[IsDeleted] = 0 AND [ClientRequestId] IS NOT NULL");
+            builder.Property(x => x.ClientRequestId).HasMaxLength(64);
             builder.Property(x => x.ReferenceNo).HasMaxLength(200).IsRequired();
             builder.Property(x => x.Notes).HasMaxLength(500);
             builder.Property(x => x.LocationCode).HasMaxLength(100);
@@ -559,6 +562,9 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.ToTable("PurchaseOrders");
             builder.HasIndex(x => new { x.TenantAccountId, x.OrderNo }).IsUnique().HasFilter("[IsDeleted] = 0");
             builder.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.ApprovedByUserName).HasMaxLength(100);
+            builder.Property(x => x.CancelledByUserName).HasMaxLength(100);
+            builder.Property(x => x.CancellationReason).HasMaxLength(500);
             builder.HasOne<CariAccount>()
                 .WithMany()
                 .HasForeignKey(x => x.SupplierCariAccountId)
@@ -566,6 +572,14 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasOne<Warehouse>()
                 .WithMany()
                 .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.CancelledByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasMany(x => x.Items)
                 .WithOne()
@@ -593,6 +607,9 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.ToTable("SalesOrders");
             builder.HasIndex(x => new { x.TenantAccountId, x.OrderNo }).IsUnique().HasFilter("[IsDeleted] = 0");
             builder.Property(x => x.OrderNo).HasMaxLength(30).IsRequired();
+            builder.Property(x => x.ApprovedByUserName).HasMaxLength(100);
+            builder.Property(x => x.CancelledByUserName).HasMaxLength(100);
+            builder.Property(x => x.CancellationReason).HasMaxLength(500);
             builder.HasOne<CariAccount>()
                 .WithMany()
                 .HasForeignKey(x => x.CustomerCariAccountId)
@@ -600,6 +617,14 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.HasOne<Warehouse>()
                 .WithMany()
                 .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.ApprovedByUserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<AppUser>()
+                .WithMany()
+                .HasForeignKey(x => x.CancelledByUserId)
                 .OnDelete(DeleteBehavior.Restrict);
             builder.HasMany(x => x.Items)
                 .WithOne()

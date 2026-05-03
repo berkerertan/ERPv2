@@ -3,6 +3,7 @@ using MediatR;
 namespace ERP.Application.Features.StockMovements.Commands.ApplyInventoryCount;
 
 public sealed record ApplyInventoryCountCommand(
+    string? ClientRequestId,
     Guid? SessionId,
     Guid WarehouseId,
     string? ReferenceNo,
