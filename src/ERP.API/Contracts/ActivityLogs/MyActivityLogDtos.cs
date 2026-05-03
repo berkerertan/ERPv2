@@ -4,6 +4,8 @@ public sealed record MyActivityLogDto(
     Guid Id,
     Guid? TenantId,
     Guid? UserId,
+    string? UserName,
+    string? Description,
     string HttpMethod,
     string Path,
     int StatusCode,

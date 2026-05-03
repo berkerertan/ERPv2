@@ -123,6 +123,31 @@ public sealed class UserNotificationService(
         return true;
     }
 
+    public async Task<int> DeleteReadAsync(CancellationToken cancellationToken = default)
+    {
+        if (!currentTenantService.HasTenant)
+        {
+            return 0;
+        }
+
+        var readItems = await dbContext.UserNotifications
+            .Where(x => x.IsRead)
+            .ToListAsync(cancellationToken);
+
+        if (readItems.Count == 0)
+        {
+            return 0;
+        }
+
+        foreach (var item in readItems)
+        {
+            item.MarkAsDeleted();
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        return readItems.Count;
+    }
+
     private static UserNotificationModel Map(UserNotification row)
         => new(
             row.Id,

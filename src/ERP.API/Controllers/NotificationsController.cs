@@ -48,6 +48,14 @@ public sealed class NotificationsController(IUserNotificationService notificatio
         return NoContent();
     }
 
+    [HttpDelete("read")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> DeleteReadNotifications(CancellationToken cancellationToken)
+    {
+        await notificationService.DeleteReadAsync(cancellationToken);
+        return NoContent();
+    }
+
     [HttpPost]
     [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
     public async Task<ActionResult<Guid>> CreateNotification([FromBody] CreateNotificationRequest request, CancellationToken cancellationToken)

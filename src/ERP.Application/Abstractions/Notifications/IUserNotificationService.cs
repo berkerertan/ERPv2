@@ -21,4 +21,5 @@ public interface IUserNotificationService
     Task<bool> MarkAsReadAsync(Guid id, CancellationToken cancellationToken = default);
     Task<int> MarkAllAsReadAsync(CancellationToken cancellationToken = default);
     Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<int> DeleteReadAsync(CancellationToken cancellationToken = default);
 }

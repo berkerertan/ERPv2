@@ -406,3 +406,6 @@ sample-cari-import.xlsx
 
 src/ERP.API/wwwroot/downloads/ERPv2-Offline.exe
 
+
+# Local project memory file
+PROJECT_STATUS.md

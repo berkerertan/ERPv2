@@ -76,6 +76,8 @@ public sealed class ActivityLogsController(
                 x.Id,
                 x.TenantAccountId,
                 x.UserId,
+                x.UserName,
+                x.Description,
                 x.HttpMethod,
                 x.Path,
                 x.StatusCode,
