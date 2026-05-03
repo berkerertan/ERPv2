@@ -1,4 +1,4 @@
-import{a as b}from"./chunk-3R23W3L2.js";import{b as S}from"./chunk-533TRF6S.js";import"./chunk-RGAVFUWM.js";import"./chunk-LJBGPCP7.js";import{$a as a,Eb as h,Fb as p,Gb as v,sb as s,tb as m,ub as l,vc as g,xb as f}from"./chunk-PRNXKBAA.js";var L=["canvas"],c=class r{canvasRef;gl=null;program=null;animationId=null;timeUniform=null;resolutionUniform=null;time=1;resizeObserver=null;VS=`
+import{a as b}from"./chunk-KZBY5SMP.js";import{b as S}from"./chunk-533TRF6S.js";import"./chunk-RGAVFUWM.js";import"./chunk-LJBGPCP7.js";import{$a as a,Eb as h,Fb as p,Gb as v,sb as s,tb as m,ub as l,vc as g,xb as f}from"./chunk-PRNXKBAA.js";var L=["canvas"],c=class r{canvasRef;gl=null;program=null;animationId=null;timeUniform=null;resolutionUniform=null;time=1;resizeObserver=null;VS=`
     attribute vec2 a_pos;
     void main() {
       gl_Position = vec4(a_pos, 0.0, 1.0);
