@@ -41,9 +41,15 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
     public DbSet<InventoryCountSessionItem> InventoryCountSessionItems => Set<InventoryCountSessionItem>();
     public DbSet<PurchaseOrder> PurchaseOrders => Set<PurchaseOrder>();
     public DbSet<PurchaseOrderItem> PurchaseOrderItems => Set<PurchaseOrderItem>();
+    public DbSet<PurchaseRecommendationSnapshot> PurchaseRecommendationSnapshots => Set<PurchaseRecommendationSnapshot>();
+    public DbSet<SupplierQuoteRequest> SupplierQuoteRequests => Set<SupplierQuoteRequest>();
+    public DbSet<SupplierQuoteRequestItem> SupplierQuoteRequestItems => Set<SupplierQuoteRequestItem>();
+    public DbSet<SupplierQuoteOffer> SupplierQuoteOffers => Set<SupplierQuoteOffer>();
+    public DbSet<SupplierQuoteOfferItem> SupplierQuoteOfferItems => Set<SupplierQuoteOfferItem>();
     public DbSet<SalesOrder> SalesOrders => Set<SalesOrder>();
     public DbSet<SalesOrderItem> SalesOrderItems => Set<SalesOrderItem>();
     public DbSet<FinanceMovement> FinanceMovements => Set<FinanceMovement>();
+    public DbSet<CollectionPlanEntry> CollectionPlanEntries => Set<CollectionPlanEntry>();
     public DbSet<CheckNote> CheckNotes => Set<CheckNote>();
     public DbSet<Quote> Quotes => Set<Quote>();
     public DbSet<QuoteItem> QuoteItems => Set<QuoteItem>();
@@ -602,6 +608,110 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             ConfigureTenantEntity(builder);
         });
 
+        modelBuilder.Entity<PurchaseRecommendationSnapshot>(builder =>
+        {
+            builder.ToTable("PurchaseRecommendationSnapshots");
+            builder.HasIndex(x => new { x.TenantAccountId, x.CreatedAtUtc });
+            builder.HasIndex(x => new { x.TenantAccountId, x.WarehouseId, x.CreatedAtUtc });
+            builder.Property(x => x.WarehouseName).HasMaxLength(150).IsRequired();
+            builder.Property(x => x.SupplierName).HasMaxLength(150);
+            builder.Property(x => x.CreatedByUserName).HasMaxLength(100);
+            builder.Property(x => x.TotalRecommendedQuantity).HasPrecision(18, 3);
+            builder.Property(x => x.TotalEstimatedCost).HasPrecision(18, 2);
+            builder.Property(x => x.ItemsJson).HasMaxLength(32000).IsRequired();
+            builder.Property(x => x.SupplierGroupsJson).HasMaxLength(16000).IsRequired();
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SupplierCariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<SupplierQuoteRequest>(builder =>
+        {
+            builder.ToTable("SupplierQuoteRequests");
+            builder.HasIndex(x => new { x.TenantAccountId, x.RequestNo }).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.HasIndex(x => new { x.TenantAccountId, x.Status, x.CreatedAtUtc });
+            builder.Property(x => x.RequestNo).HasMaxLength(40).IsRequired();
+            builder.Property(x => x.Title).HasMaxLength(160).IsRequired();
+            builder.Property(x => x.Notes).HasMaxLength(1500);
+            builder.Property(x => x.CreatedByUserName).HasMaxLength(100);
+            builder.HasOne<Warehouse>()
+                .WithMany()
+                .HasForeignKey(x => x.WarehouseId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SelectedSupplierCariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasOne<SupplierQuoteOffer>()
+                .WithMany()
+                .HasForeignKey(x => x.SelectedOfferId)
+                .OnDelete(DeleteBehavior.NoAction);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.SupplierQuoteRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+            builder.HasMany(x => x.Offers)
+                .WithOne()
+                .HasForeignKey(x => x.SupplierQuoteRequestId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<SupplierQuoteRequestItem>(builder =>
+        {
+            builder.ToTable("SupplierQuoteRequestItems");
+            builder.HasIndex(x => new { x.TenantAccountId, x.SupplierQuoteRequestId });
+            builder.Property(x => x.Quantity).HasPrecision(18, 3);
+            builder.Property(x => x.TargetUnitPrice).HasPrecision(18, 2);
+            builder.Property(x => x.Notes).HasMaxLength(300);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<SupplierQuoteOffer>(builder =>
+        {
+            builder.ToTable("SupplierQuoteOffers");
+            builder.HasIndex(x => new { x.TenantAccountId, x.SupplierQuoteRequestId, x.SupplierCariAccountId }).IsUnique().HasFilter("[IsDeleted] = 0");
+            builder.Property(x => x.Notes).HasMaxLength(1000);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.SupplierCariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+            builder.HasMany(x => x.Items)
+                .WithOne()
+                .HasForeignKey(x => x.SupplierQuoteOfferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<SupplierQuoteOfferItem>(builder =>
+        {
+            builder.ToTable("SupplierQuoteOfferItems");
+            builder.HasIndex(x => new { x.TenantAccountId, x.SupplierQuoteOfferId });
+            builder.Property(x => x.OfferedQuantity).HasPrecision(18, 3);
+            builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+            builder.Property(x => x.MinimumOrderQuantity).HasPrecision(18, 3);
+            builder.HasOne<Product>()
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
         modelBuilder.Entity<SalesOrder>(builder =>
         {
             builder.ToTable("SalesOrders");
@@ -713,6 +823,25 @@ public sealed class ErpDbContext(DbContextOptions<ErpDbContext> options, ICurren
             builder.Property(x => x.Amount).HasPrecision(18, 2);
             builder.Property(x => x.Description).HasMaxLength(250);
             builder.Property(x => x.ReferenceNo).HasMaxLength(50);
+            builder.HasOne<CariAccount>()
+                .WithMany()
+                .HasForeignKey(x => x.CariAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            ConfigureTenantEntity(builder);
+        });
+
+        modelBuilder.Entity<CollectionPlanEntry>(builder =>
+        {
+            builder.ToTable("CollectionPlanEntries");
+            builder.HasIndex(x => new { x.TenantAccountId, x.CariAccountId, x.Status });
+            builder.HasIndex(x => new { x.TenantAccountId, x.Priority, x.NextActionDateUtc });
+            builder.Property(x => x.Title).HasMaxLength(160).IsRequired();
+            builder.Property(x => x.OverdueAmount).HasPrecision(18, 2);
+            builder.Property(x => x.RiskUsageRate).HasPrecision(18, 4);
+            builder.Property(x => x.AssignedToUserName).HasMaxLength(100);
+            builder.Property(x => x.Notes).HasMaxLength(1500);
+            builder.Property(x => x.LastContactNote).HasMaxLength(1000);
             builder.HasOne<CariAccount>()
                 .WithMany()
                 .HasForeignKey(x => x.CariAccountId)

@@ -8,4 +8,5 @@ public sealed record GetPurchaseRecommendationsQuery(
     int AnalysisDays = 30,
     int CoverageDays = 21,
     int MaxItems = 30,
-    bool CriticalOnly = false) : IRequest<PurchaseRecommendationDto>;
+    bool CriticalOnly = false,
+    string? RequestedByUserName = null) : IRequest<PurchaseRecommendationDto>;

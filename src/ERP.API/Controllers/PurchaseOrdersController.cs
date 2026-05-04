@@ -8,6 +8,8 @@ using ERP.Application.Features.PurchaseOrders.Commands.RejectPurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Commands.UpdatePurchaseOrder;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrderById;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseOrders;
+using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseRecommendationHistory;
+using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseRecommendationHistoryById;
 using ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseRecommendations;
 using ERP.Domain.Constants;
 using MediatR;
@@ -56,8 +58,35 @@ public sealed class PurchaseOrdersController(IMediator mediator) : ControllerBas
                 analysisDays,
                 coverageDays,
                 maxItems,
-                criticalOnly),
+                criticalOnly,
+                User.FindFirstValue(ClaimTypes.Name) ?? User.Identity?.Name),
             cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpGet("recommendations/history")]
+    [ProducesResponseType(typeof(IReadOnlyList<PurchaseRecommendationHistoryListItemDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IReadOnlyList<PurchaseRecommendationHistoryListItemDto>>> GetRecommendationHistory(
+        [FromQuery] int take = 12,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(new GetPurchaseRecommendationHistoryQuery(take), cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("recommendations/history/{snapshotId:guid}")]
+    [ProducesResponseType(typeof(PurchaseRecommendationHistoryDetailDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<PurchaseRecommendationHistoryDetailDto>> GetRecommendationHistoryById(
+        Guid snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        var response = await mediator.Send(new GetPurchaseRecommendationHistoryByIdQuery(snapshotId), cancellationToken);
+        if (response is null)
+        {
+            return NotFound();
+        }
 
         return Ok(response);
     }

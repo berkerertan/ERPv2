@@ -93,6 +93,7 @@ public static class DependencyInjection
         services.AddScoped<IStockMovementRepository, StockMovementRepository>();
         services.AddScoped<IInventoryCountSessionRepository, InventoryCountSessionRepository>();
         services.AddScoped<IPurchaseOrderRepository, PurchaseOrderRepository>();
+        services.AddScoped<IPurchaseRecommendationSnapshotRepository, PurchaseRecommendationSnapshotRepository>();
         services.AddScoped<ISalesOrderRepository, SalesOrderRepository>();
         services.AddScoped<IFinanceMovementRepository, FinanceMovementRepository>();
 

@@ -2,6 +2,7 @@ using ERP.Application.Abstractions.Persistence;
 using ERP.Domain.Entities;
 using ERP.Domain.Enums;
 using MediatR;
+using System.Text.Json;
 
 namespace ERP.Application.Features.PurchaseOrders.Queries.GetPurchaseRecommendations;
 
@@ -11,7 +12,8 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
     ICariAccountRepository cariAccountRepository,
     IPurchaseOrderRepository purchaseOrderRepository,
     ISalesOrderRepository salesOrderRepository,
-    IStockMovementRepository stockMovementRepository)
+    IStockMovementRepository stockMovementRepository,
+    IPurchaseRecommendationSnapshotRepository snapshotRepository)
     : IRequestHandler<GetPurchaseRecommendationsQuery, PurchaseRecommendationDto>
 {
     public async Task<PurchaseRecommendationDto> Handle(
@@ -186,7 +188,7 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
             orderedItems.Sum(x => x.RecommendedOrderQuantity),
             Math.Round(orderedItems.Sum(x => x.EstimatedCost), 2, MidpointRounding.AwayFromZero));
 
-        return new PurchaseRecommendationDto(
+        var result = new PurchaseRecommendationDto(
             request.WarehouseId,
             request.SupplierCariAccountId,
             analysisDays,
@@ -205,6 +207,29 @@ public sealed class GetPurchaseRecommendationsQueryHandler(
                 .ThenBy(x => x.SupplierName)
                 .ToList(),
             orderedItems);
+
+        await snapshotRepository.AddAsync(new PurchaseRecommendationSnapshot
+        {
+            WarehouseId = warehouse.Id,
+            WarehouseName = warehouse.Name,
+            SupplierCariAccountId = request.SupplierCariAccountId,
+            SupplierName = request.SupplierCariAccountId.HasValue && suppliers.TryGetValue(request.SupplierCariAccountId.Value, out var requestedSupplier)
+                ? requestedSupplier.Name
+                : null,
+            AnalysisDays = analysisDays,
+            CoverageDays = coverageDays,
+            MaxItems = maxItems,
+            CriticalOnly = request.CriticalOnly,
+            TotalItems = result.Summary.TotalItems,
+            CriticalItems = result.Summary.CriticalItems,
+            TotalRecommendedQuantity = result.Summary.TotalRecommendedQuantity,
+            TotalEstimatedCost = result.Summary.TotalEstimatedCost,
+            ItemsJson = JsonSerializer.Serialize(result.Items),
+            SupplierGroupsJson = JsonSerializer.Serialize(result.SupplierGroups),
+            CreatedByUserName = request.RequestedByUserName
+        }, cancellationToken);
+
+        return result;
     }
 
     private static PurchaseRecommendationDto CreateEmptyResult(GetPurchaseRecommendationsQuery request)

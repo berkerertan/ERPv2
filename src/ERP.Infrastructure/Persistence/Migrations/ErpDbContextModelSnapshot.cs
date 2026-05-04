@@ -765,6 +765,88 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.ToTable("CheckNotes", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.CollectionPlanEntry", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AssignedToUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("CariAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("LastContactAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastContactNote")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("NextActionDateUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1500)
+                        .HasColumnType("nvarchar(1500)");
+
+                    b.Property<decimal>("OverdueAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("OverdueDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("PromiseDateUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<decimal>("RiskUsageRate")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("decimal(18,4)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CariAccountId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("TenantAccountId", "CariAccountId", "Status");
+
+                    b.HasIndex("TenantAccountId", "Priority", "NextActionDateUtc");
+
+                    b.ToTable("CollectionPlanEntries", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Company", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2191,6 +2273,99 @@ namespace ERP.Infrastructure.Persistence.Migrations
                     b.ToTable("PurchaseOrderItems", (string)null);
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.PurchaseRecommendationSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AnalysisDays")
+                        .HasColumnType("int");
+
+                    b.Property<int>("CoverageDays")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("CriticalItems")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("CriticalOnly")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("ItemsJson")
+                        .IsRequired()
+                        .HasMaxLength(32000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("MaxItems")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("SupplierCariAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("SupplierGroupsJson")
+                        .IsRequired()
+                        .HasMaxLength(16000)
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("SupplierName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("TotalEstimatedCost")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TotalItems")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalRecommendedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("WarehouseName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierCariAccountId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("TenantAccountId", "CreatedAtUtc");
+
+                    b.HasIndex("TenantAccountId", "WarehouseId", "CreatedAtUtc");
+
+                    b.ToTable("PurchaseRecommendationSnapshots", (string)null);
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Quote", b =>
                 {
                     b.Property<Guid>("Id")
@@ -2706,6 +2881,246 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .HasFilter("[IsDeleted] = 0");
 
                     b.ToTable("SubscriptionPlanSettings", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteOffer", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<int>("LeadTimeDays")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("RespondedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("SupplierCariAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SupplierQuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SupplierCariAccountId");
+
+                    b.HasIndex("SupplierQuoteRequestId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("TenantAccountId", "SupplierQuoteRequestId", "SupplierCariAccountId")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.ToTable("SupplierQuoteOffers", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteOfferItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<decimal?>("MinimumOrderQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<decimal>("OfferedQuantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SupplierQuoteOfferId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SupplierQuoteOfferId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("TenantAccountId", "SupplierQuoteOfferId");
+
+                    b.ToTable("SupplierQuoteOfferItems", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteRequest", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedByUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<DateTime?>("NeededByDateUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1500)
+                        .HasColumnType("nvarchar(1500)");
+
+                    b.Property<string>("RequestNo")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<Guid?>("SelectedOfferId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("SelectedSupplierCariAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("WarehouseId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("SelectedOfferId");
+
+                    b.HasIndex("SelectedSupplierCariAccountId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("WarehouseId");
+
+                    b.HasIndex("TenantAccountId", "RequestNo")
+                        .IsUnique()
+                        .HasFilter("[IsDeleted] = 0");
+
+                    b.HasIndex("TenantAccountId", "Status", "CreatedAtUtc");
+
+                    b.ToTable("SupplierQuoteRequests", (string)null);
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteRequestItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false);
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(300)
+                        .HasColumnType("nvarchar(300)");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 3)
+                        .HasColumnType("decimal(18,3)");
+
+                    b.Property<Guid>("SupplierQuoteRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal?>("TargetUnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("TenantAccountId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("SupplierQuoteRequestId");
+
+                    b.HasIndex("TenantAccountId");
+
+                    b.HasIndex("TenantAccountId", "SupplierQuoteRequestId");
+
+                    b.ToTable("SupplierQuoteRequestItems", (string)null);
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.SystemActivityLog", b =>
@@ -3253,6 +3668,21 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.CollectionPlanEntry", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CariAccount", null)
+                        .WithMany()
+                        .HasForeignKey("CariAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Company", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.TenantAccount", null)
@@ -3534,6 +3964,26 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.PurchaseRecommendationSnapshot", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CariAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierCariAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.Quote", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.CariAccount", null)
@@ -3693,6 +4143,94 @@ namespace ERP.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteOffer", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.CariAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SupplierCariAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.SupplierQuoteRequest", null)
+                        .WithMany("Offers")
+                        .HasForeignKey("SupplierQuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteOfferItem", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.SupplierQuoteOffer", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SupplierQuoteOfferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteRequest", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.SupplierQuoteOffer", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedOfferId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("ERP.Domain.Entities.CariAccount", null)
+                        .WithMany()
+                        .HasForeignKey("SelectedSupplierCariAccountId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.Warehouse", null)
+                        .WithMany()
+                        .HasForeignKey("WarehouseId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteRequestItem", b =>
+                {
+                    b.HasOne("ERP.Domain.Entities.Product", null)
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.SupplierQuoteRequest", null)
+                        .WithMany("Items")
+                        .HasForeignKey("SupplierQuoteRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ERP.Domain.Entities.TenantAccount", null)
+                        .WithMany()
+                        .HasForeignKey("TenantAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("ERP.Domain.Entities.SystemActivityLog", b =>
                 {
                     b.HasOne("ERP.Domain.Entities.TenantAccount", null)
@@ -3824,6 +4362,18 @@ namespace ERP.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("ERP.Domain.Entities.SalesOrder", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteOffer", b =>
+                {
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ERP.Domain.Entities.SupplierQuoteRequest", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("Offers");
                 });
 
             modelBuilder.Entity("ERP.Domain.Entities.Waybill", b =>

@@ -1,4 +1,4 @@
-namespace ERP.API.Contracts.ActivityLogs;
+﻿namespace ERP.API.Contracts.ActivityLogs;
 
 public sealed record MyActivityLogDto(
     Guid Id,
@@ -8,6 +8,7 @@ public sealed record MyActivityLogDto(
     string? Description,
     string HttpMethod,
     string Path,
+    string Module,
     int StatusCode,
     int DurationMs,
     string? IpAddress,
